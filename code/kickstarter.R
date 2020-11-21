@@ -9,7 +9,7 @@ if(!require(devtools)) install.packages("devtools", repos = "http://cran.us.r-pr
 if(!require(moderndive)) install.packages("moderndive", repos = "http://cran.us.r-project.org")
 if(!require(gridExtra)) install.packages("gridExtra", repos = "http://cran.us.r-project.org")
 if(!require(randomForest)) install.packages("randomForest", repos = "http://cran.us.r-project.org")
-
+if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
 
 library(randomForest)
 #library(xgboost)
@@ -26,6 +26,7 @@ library(ModelMetrics)
 library(gridExtra)
 library(GGally)
 library(broom)
+library(caret)
 
 data_dir <- paste(getwd(), "/data/", sep = "")
 
@@ -41,8 +42,10 @@ ds <- data %>% select(-`usd pledged`)
 #Add a campaign length in days
 ds <- ds %>% mutate(time_int = as.numeric(deadline - as.Date(launched)) ,
                     launched = as.Date(launched),
-                    pledged_ratio = round(usd_pledged_real) / round(usd_goal_real))
-
+                    pledged_ratio = round(usd_pledged_real / usd_goal_real, 2),
+                    avg_backer_pldg = round(usd_pledged_real/backers) ) %>%
+            mutate(launched_month = as.factor(format(launched, "%m")),
+                    launched_day_of_week = as.factor(format(launched, "%A")  ))
 
 
 
@@ -234,12 +237,38 @@ round(quantile(ds$pledged_ratio[ds$state == 'successful'] , probs = seq(0.1 , 0.
 
 #create a binary field to show failed / successful campaign
 
-ds <- ds %>% select(category ,  country , usd_goal_real , pledged_ratio, time_int , state) %>% 
+ds <- ds %>% select(category ,  country , usd_goal_real , pledged_ratio, time_int , backers, state) %>% 
   filter(state %in% c('successful' , 'failed')) %>% 
   mutate(state = as.factor(ifelse(state == 'successful' , 1 , 0))) %>%
   mutate_if(is.character , as.factor)
 
-ds2 <- data.frame(model.matrix( ~ . -1 , ds))
+results_GLM <- function(train_data, test_data, predicted_field_name, predictors_list) {
+  #fm <- as.formula(paste(colnames(data)[1], "~", var))
+  #lm(fm, data = data)
+  
+  fm_string <- paste(predicted_field_name, "~")
+  for (i in 1:length(predictors_list)) {
+    fm_string <- paste(fm_string, predictors_list[i])
+    if (i < length(predictors_list))
+      fm_string <- paste(fm_string, "+")
+  }
+  print(fm_string)
+  fm <- as.formula(fm_string)
+  
+  glm.fit <- glm(fm , train_data, family = binomial)
+  aug_glm_model <- augment(glm.fit, newdata = test_data, type.predict = 'response')
+  
+  result <- aug_glm_model %>% mutate(Prediction = factor(round(.fitted)), Reference = state) %>%   
+    select(Reference , Prediction ) %>% table()
+  
+  caret::confusionMatrix(result)
+}
+
+
+#since the outcome is a factor and not just numeric, we can't use simple linear regression to calculate this. we need to use GLM
+
+#GLM Try 1
+ds2 <- data.frame(model.matrix( ~ . -1 , ds %>% select(-pledged_ratio) ))
 
 colnames(ds2)[ncol(ds2)] = 'state'
 ds2$state = as.factor(ds2$state)
@@ -248,30 +277,67 @@ index = sample(dim(ds2)[1] , dim(ds2)[1]*0.80 , replace = FALSE)
 trainset = ds2[index , ]
 testset = ds2[-index , ]
 
-rm(data, ds1, ds3, ds4, failed)
-
+#rm(data, ds1, ds3, ds4, failed)
+set.seed(1, sample.kind="Rounding")
 log.fit <- glm(state ~ . , trainset, family = binomial(link = "logit") )
 probs <- predict(log.fit , testset , type = 'response')
 
 q1 <- qplot(probs , geom = 'density') + geom_density(fill = 'pink' , alpha = 0.7) +
   labs(x = 'Probabilities' , title = 'GLM REGRESSION - Probabilities assigned to test set')
+q1
+###### GLM try 2
+
+#predictions based solely on category
 
 set.seed(1, sample.kind="Rounding")
-test_lm_index <- createDataPartition(y = ds$state, times = 1, p = 0.2, list = FALSE)
+test_lm_index <- createDataPartition(y = ds$state, times = 1, p = 0.2) %>% unlist()
 lm_ds <- ds[-test_lm_index,]
 test_ds <- ds[test_lm_index,]
-log2.fit  <- lm(factor(state) ~ ., lm_ds)
-probs_lm <- predict(log2.fit, test_ds, type = "response")
 
-q2 <- qplot(probs_lm , geom = 'density') + geom_density(fill = 'pink' , alpha = 0.7) +
-  labs(x = 'Probabilities' , title = 'Linear REGRESSION - Probabilities assigned to test set')
+columns <- colnames(ds)
+col_subset <- columns[columns %in% c("category")]
 
-plot_grid(q1, q2)
+cf1 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf1
+#################
+#category AND time interval in days
+col_subset <- columns[columns %in% c("category", "time_int", "country")]
 
-#augment(log.fit)
+cf2 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf2
 
+
+#################
+#category AND time AND country interval in days
+col_subset <- columns[columns %in% c("category", "time_int", "country")]
+
+cf3 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf3
+
+##############
+col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real")]
+
+cf4 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf4
+##############
+col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "backers")]
+
+cf5 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf5
+
+##############
+col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "backers", "avg_backer_pldg")]
+
+cf6 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf6
 
 #rf.fit = randomForest(state ~ . , trainset[sample(dim(trainset)[1] , 50000) , ] , ntree = 500)
 #rf.fit
+
+
+
+
+
+
 
 
