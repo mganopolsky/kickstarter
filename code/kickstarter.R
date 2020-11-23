@@ -10,8 +10,11 @@ if(!require(moderndive)) install.packages("moderndive", repos = "http://cran.us.
 if(!require(gridExtra)) install.packages("gridExtra", repos = "http://cran.us.r-project.org")
 if(!require(randomForest)) install.packages("randomForest", repos = "http://cran.us.r-project.org")
 if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(ranger)) install.packages("ranger", repos = "http://cran.us.r-project.org")
+if(!require(naivebayes)) install.packages("naivebayes", repos = "http://cran.us.r-project.org")
 
 library(randomForest)
+library(naivebayes)
 #library(xgboost)
 library(tidyverse)
 library(stringr)
@@ -27,6 +30,7 @@ library(gridExtra)
 library(GGally)
 library(broom)
 library(caret)
+library(ranger)
 
 data_dir <- paste(getwd(), "/data/", sep = "")
 
@@ -35,11 +39,13 @@ data <- read_csv(paste(data_dir, "ks-projects-201801.csv", sep = ""))
 glimpse(data)
 #There aree 378,661 rows
 
-#Let's rename some cuomns for consistancy to remove blanks
-#according to the documentatino, `usd pledged` isn't needed, so we'll remove it
+#according to the documentatino, `usd pledged` isn't needed since there is the usd_pledged_real, so I'll remove it
 ds <- data %>% select(-`usd pledged`)
 
-#Add a campaign length in days
+#Add a campaign length in days (time_int), pledged ratio (how much has been pledged vs what the goal is), 
+#as well as the average pledge per backer, per project
+#I will also like to explore whether the month or the day of the week of the posted project mught have something to do with its succeess, 
+#so I have added the launched_month and launched_day_of_week columns.
 ds <- ds %>% mutate(time_int = as.numeric(deadline - as.Date(launched)) ,
                     launched = as.Date(launched),
                     pledged_ratio = round(usd_pledged_real / usd_goal_real, 2),
@@ -49,9 +55,10 @@ ds <- ds %>% mutate(time_int = as.numeric(deadline - as.Date(launched)) ,
 
 
 
+#############################33
 #Exploratory Data Analysis (EDA)
 
-#let's see if there are missing valuese
+#let's see if there are missing values in the data
 summary(ds)
 
 #noticing something funny - the launched dates start in 1970 - let's look closer
@@ -79,6 +86,8 @@ ds$main_category <- as.factor(ds$main_category)
 ds$currency <- as.factor(ds$currency)
 ds$state <- as.factor(ds$state)
 ds$country  <- as.factor(ds$country )
+ds$launched_month <- as.factor(ds$launched_month)
+ds$launched_day_of_week <- as.factor(ds$launched_day_of_week)
 
 #let's look at the levels of each of these factors
 levels(ds$category)
@@ -237,15 +246,14 @@ round(quantile(ds$pledged_ratio[ds$state == 'successful'] , probs = seq(0.1 , 0.
 
 #create a binary field to show failed / successful campaign
 
-ds <- ds %>% select(category ,  country , usd_goal_real , pledged_ratio, time_int , backers, state) %>% 
+#select all the necessary columns, with the "state" being the last one - important for the matrix of dummy variables  later
+ds <- ds %>% select(category ,  country , usd_goal_real , pledged_ratio, time_int , backers, launched_day_of_week, launched_month, state ) %>% 
   filter(state %in% c('successful' , 'failed')) %>% 
   mutate(state = as.factor(ifelse(state == 'successful' , 1 , 0))) %>%
   mutate_if(is.character , as.factor)
 
 results_GLM <- function(train_data, test_data, predicted_field_name, predictors_list) {
-  #fm <- as.formula(paste(colnames(data)[1], "~", var))
-  #lm(fm, data = data)
-  
+
   fm_string <- paste(predicted_field_name, "~")
   for (i in 1:length(predictors_list)) {
     fm_string <- paste(fm_string, predictors_list[i])
@@ -256,37 +264,34 @@ results_GLM <- function(train_data, test_data, predicted_field_name, predictors_
   fm <- as.formula(fm_string)
   
   glm.fit <- glm(fm , train_data, family = binomial)
-  aug_glm_model <- augment(glm.fit, newdata = test_data, type.predict = 'response')
+  #aug_glm_model <- augment(glm.fit, newdata = test_data, type.predict = 'response')
   
-  result <- aug_glm_model %>% mutate(Prediction = factor(round(.fitted)), Reference = state) %>%   
-    select(Reference , Prediction ) %>% table()
+  #result <- aug_glm_model %>% mutate(Prediction = factor(round(.fitted)), Reference = state) %>%   
+  #  select(Reference , Prediction ) %>% table()
   
-  caret::confusionMatrix(result)
+  #return (caret::confusionMatrix(result))
+  
+  return (get_confusion_matrix(model_fit= glm.fit, test_data = test_data))
 }
 
 
+get_confusion_matrix <- function(model_fit, test_data)
+{
+  aug_model <- augment(model_fit, newdata = test_data, type.predict = 'response')
+  
+  result <- aug_model %>% mutate(Prediction = factor(round(.fitted)), Reference = state) %>%   
+    select(Reference , Prediction ) %>% table()
+  
+  return (caret::confusionMatrix(result))
+}
+
+get_accuracy <- function(cf_matrix) 
+{
+  cf_accuracy <- sum(diag(cf_matrix)) / sum(cf_matrix)
+  return(cf_accuracy)
+}
+
 #since the outcome is a factor and not just numeric, we can't use simple linear regression to calculate this. we need to use GLM
-
-#GLM Try 1
-ds2 <- data.frame(model.matrix( ~ . -1 , ds %>% select(-pledged_ratio) ))
-
-colnames(ds2)[ncol(ds2)] = 'state'
-ds2$state = as.factor(ds2$state)
-
-index = sample(dim(ds2)[1] , dim(ds2)[1]*0.80 , replace = FALSE)
-trainset = ds2[index , ]
-testset = ds2[-index , ]
-
-#rm(data, ds1, ds3, ds4, failed)
-set.seed(1, sample.kind="Rounding")
-log.fit <- glm(state ~ . , trainset, family = binomial(link = "logit") )
-probs <- predict(log.fit , testset , type = 'response')
-
-q1 <- qplot(probs , geom = 'density') + geom_density(fill = 'pink' , alpha = 0.7) +
-  labs(x = 'Probabilities' , title = 'GLM REGRESSION - Probabilities assigned to test set')
-q1
-###### GLM try 2
-
 #predictions based solely on category
 
 set.seed(1, sample.kind="Rounding")
@@ -320,20 +325,93 @@ col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goa
 cf4 <- results_GLM(lm_ds, test_ds, "state", col_subset)
 cf4
 ##############
-col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "backers")]
+col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "launched_month")]
 
 cf5 <- results_GLM(lm_ds, test_ds, "state", col_subset)
 cf5
 
 ##############
-col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "backers", "avg_backer_pldg")]
+col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "launched_month", "launched_day_of_week")]
 
 cf6 <- results_GLM(lm_ds, test_ds, "state", col_subset)
 cf6
 
-#rf.fit = randomForest(state ~ . , trainset[sample(dim(trainset)[1] , 50000) , ] , ntree = 500)
-#rf.fit
 
+cf6_accuracy <- get_accuracy(cf6$table)
+
+accuracy_results <- list()
+accuracy_results['GLM'] =  cf6_accuracy
+
+#try a random forest prediction - this doesn't work because there are more then 53 categories?
+
+ds <- ds %>% select(-backers, -pledged_ratio)
+ds_matrix_data <- data.frame(model.matrix( ~ . -1 , ds))
+
+#rename the last column to 'state'
+colnames(ds_matrix_data)[ncol(ds_matrix_data)] = 'state'
+ds_matrix_data$state = as.factor(ds_matrix_data$state)
+
+set.seed(123)
+idx <- sample(dim(ds_matrix_data)[1] , dim(ds_matrix_data)[1]*0.80 , replace = FALSE)
+matrix_trainset <- ds_matrix_data[idx , ]
+matrix_testset <- ds_matrix_data[-idx , ]
+
+
+
+#we can now use the random forest with the various dummy variables
+rf.fit <- randomForest(state ~ . , matrix_trainset[sample(dim(matrix_trainset)[1] , 50000) , ] , ntree = 500)
+
+rf_preds <- predict(rf.fit , matrix_testset)
+# Confusion Matrix of test set
+rf_cf_matrix <- table(Actual = matrix_testset$state , Predictions = rf_preds)
+rf_cf_matrix
+
+cf_accuracy <- get_accuracy(rf_cf_matrix)
+
+accuracy_results['Random Forest'] = cf_accuracy
+
+#next, we'll try K Nearest Neighbors
+
+knn_cl <- matrix_trainset[,ncol(matrix_trainset), drop = TRUE]
+#knn.fit <- class::knn(train=lm_ds[-ncol(lm_ds)], test=test_ds[-ncol(test_ds)] , cl=knn_cl)
+
+#this fails, since KNN expects all numerical factors, so more data manipulation is required.
+knn.fit4 <- caret::knn3Train(train=matrix_trainset[-ncol(matrix_trainset)], test=matrix_testset[-ncol(matrix_testset)] ,
+                            cl=knn_cl, k=4)
+
+state_actual <- matrix_testset$state
+knn_tbl <- table(state_actual, knn.fit)
+knn_accuracy <- get_accuracy(knn_tbl)
+
+# Compute the accuracy
+#mean( state_actual == signs_pred)
+accuracy_results['K Nearest Neighbors'] = knn_accuracy
+
+#now we will try to use Naive Bayes Model
+nb <- naive_bayes(state ~ ., lm_ds)
+summary(nb)
+
+# Classification
+predict(nb, test_ds, type = "state")
+nb %state% test_ds
+
+# Posterior probabilities
+predict(nb, test, type = "prob")
+nb %prob% test
+
+# Helper functions
+tables(nb, 1)
+get_cond_dist(nb)
+
+nb_tbl <- table(state_actual, knn.fit)
+nb_accuracy <- get_accuracy(knn_tbl)
+
+accuracy_results['Naive Bayes'] = nb_accuracy
+
+
+normalize <- function(x) {
+  return((x - min(x)) / (max(x) - min(x)) )
+}
 
 
 
