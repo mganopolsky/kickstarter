@@ -12,6 +12,9 @@ if(!require(randomForest)) install.packages("randomForest", repos = "http://cran
 if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
 if(!require(ranger)) install.packages("ranger", repos = "http://cran.us.r-project.org")
 if(!require(naivebayes)) install.packages("naivebayes", repos = "http://cran.us.r-project.org")
+if(!require(GGally)) install.packages("GGally", repos = "http://cran.us.r-project.org")
+if(!require(e1071)) install.packages("e1071", dependencies=TRUE)
+
 
 library(randomForest)
 library(naivebayes)
@@ -51,7 +54,7 @@ ds <- ds %>% mutate(time_int = as.numeric(deadline - as.Date(launched)) ,
                     pledged_ratio = round(usd_pledged_real / usd_goal_real, 2),
                     avg_backer_pldg = round(usd_pledged_real/backers) ) %>%
             mutate(launched_month = as.factor(format(launched, "%m")),
-                    launched_day_of_week = as.factor(format(launched, "%A")  ))
+                    launched_day_of_week = as.factor(format(launched, "%u")  ))
 
 
 
@@ -247,7 +250,7 @@ round(quantile(ds$pledged_ratio[ds$state == 'successful'] , probs = seq(0.1 , 0.
 #create a binary field to show failed / successful campaign
 
 #select all the necessary columns, with the "state" being the last one - important for the matrix of dummy variables  later
-ds <- ds %>% select(category ,  country , usd_goal_real , pledged_ratio, time_int , backers, launched_day_of_week, launched_month, state ) %>% 
+ds <- ds %>% select(category ,  country , usd_goal_real ,  time_int ,  launched_day_of_week, launched_month, state ) %>% 
   filter(state %in% c('successful' , 'failed')) %>% 
   mutate(state = as.factor(ifelse(state == 'successful' , 1 , 0))) %>%
   mutate_if(is.character , as.factor)
@@ -344,7 +347,7 @@ accuracy_results['GLM'] =  cf6_accuracy
 
 #try a random forest prediction - this doesn't work because there are more then 53 categories?
 
-ds <- ds %>% select(-backers, -pledged_ratio)
+#ds <- ds %>% select(-backers, -pledged_ratio)
 ds_matrix_data <- data.frame(model.matrix( ~ . -1 , ds))
 
 #rename the last column to 'state'
@@ -375,39 +378,39 @@ accuracy_results['Random Forest'] = cf_accuracy
 knn_cl <- matrix_trainset[,ncol(matrix_trainset), drop = TRUE]
 #knn.fit <- class::knn(train=lm_ds[-ncol(lm_ds)], test=test_ds[-ncol(test_ds)] , cl=knn_cl)
 
-#this fails, since KNN expects all numerical factors, so more data manipulation is required.
-knn.fit4 <- caret::knn3Train(train=matrix_trainset[-ncol(matrix_trainset)], test=matrix_testset[-ncol(matrix_testset)] ,
-                            cl=knn_cl, k=4)
+
+#try for 10 neightbors - does that work? 
+knn.fit45 <- caret::knn3Train(train=matrix_trainset[-ncol(matrix_trainset)], test=matrix_testset[-ncol(matrix_testset)] ,
+                             cl=knn_cl, k=45)
 
 state_actual <- matrix_testset$state
-knn_tbl <- table(state_actual, knn.fit)
-knn_accuracy <- get_accuracy(knn_tbl)
-
-# Compute the accuracy
-#mean( state_actual == signs_pred)
-accuracy_results['K Nearest Neighbors'] = knn_accuracy
+knn_tbl45 <- table(state_actual, knn.fit45)
+knn_accuracy45 <- get_accuracy(knn_tbl45)
+accuracy_results['K Nearest Neighbors - k=45'] = knn_accuracy45
 
 #now we will try to use Naive Bayes Model
-nb <- naive_bayes(state ~ ., lm_ds)
+nb <- naive_bayes(state ~ ., lm_ds, laplace = 1)
 summary(nb)
 
 # Classification
-predict(nb, test_ds, type = "state")
-nb %state% test_ds
-
-# Posterior probabilities
-predict(nb, test, type = "prob")
-nb %prob% test
-
-# Helper functions
-tables(nb, 1)
-get_cond_dist(nb)
-
-nb_tbl <- table(state_actual, knn.fit)
-nb_accuracy <- get_accuracy(knn_tbl)
+nb_fit <- predict(nb, test_ds, type = "class")
+nb_tbl <- table(test_ds$state, nb_fit)
+nb_accuracy <- get_accuracy(nb_tbl)
 
 accuracy_results['Naive Bayes'] = nb_accuracy
 
+
+#trying NB with matrix dummy variables
+#now we will try to use Naive Bayes Model
+nb_m <- naive_bayes(state ~ ., data=matrix_trainset, type="class")
+
+# Classification
+nb_m_fit <- predict(nb_m, matrix_testset[-ncol(matrix_testset)], type = "class")
+nb_m_tbl <- table(matrix_testset$state, nb_m_fit)
+nb_m_accuracy <- get_accuracy(nb_m_tbl)
+
+accuracy_results['Naive Bayes w/matrix dummy variables'] = nb_m_accuracy
+accuracy_results
 
 normalize <- function(x) {
   return((x - min(x)) / (max(x) - min(x)) )
