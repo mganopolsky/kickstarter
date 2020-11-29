@@ -14,8 +14,14 @@ if(!require(ranger)) install.packages("ranger", repos = "http://cran.us.r-projec
 if(!require(naivebayes)) install.packages("naivebayes", repos = "http://cran.us.r-project.org")
 if(!require(GGally)) install.packages("GGally", repos = "http://cran.us.r-project.org")
 if(!require(e1071)) install.packages("e1071", dependencies=TRUE)
+if(!require(rpart)) install.packages("rpart", dependencies=TRUE)
+if(!require(rpart.plot)) install.packages("rpart.plot", dependencies=TRUE)
+if(!require(MASS)) install.packages("MASS", dependencies=TRUE)
 
 
+library(MASS)
+library(rpart)
+library(rpart.plot)
 library(randomForest)
 library(naivebayes)
 #library(xgboost)
@@ -266,7 +272,7 @@ results_GLM <- function(train_data, test_data, predicted_field_name, predictors_
   print(fm_string)
   fm <- as.formula(fm_string)
   
-  glm.fit <- glm(fm , train_data, family = binomial)
+  glm_fit <- glm(fm , train_data, family = binomial)
   #aug_glm_model <- augment(glm.fit, newdata = test_data, type.predict = 'response')
   
   #result <- aug_glm_model %>% mutate(Prediction = factor(round(.fitted)), Reference = state) %>%   
@@ -274,7 +280,8 @@ results_GLM <- function(train_data, test_data, predicted_field_name, predictors_
   
   #return (caret::confusionMatrix(result))
   
-  return (get_confusion_matrix(model_fit= glm.fit, test_data = test_data))
+  #return (get_confusion_matrix(model_fit= glm.fit, test_data = test_data))
+  return (glm_fit)
 }
 
 
@@ -305,13 +312,15 @@ test_ds <- ds[test_lm_index,]
 columns <- colnames(ds)
 col_subset <- columns[columns %in% c("category")]
 
-cf1 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+glm_1 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf1 <- get_confusion_matrix(model_fit= glm_1, test_data = test_ds)
 cf1
 #################
 #category AND time interval in days
 col_subset <- columns[columns %in% c("category", "time_int", "country")]
 
-cf2 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+glm_2 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf2 <- get_confusion_matrix(model_fit= glm_2, test_data = test_ds)
 cf2
 
 
@@ -319,24 +328,28 @@ cf2
 #category AND time AND country interval in days
 col_subset <- columns[columns %in% c("category", "time_int", "country")]
 
-cf3 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+glm_3 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf3 <- get_confusion_matrix(model_fit= glm_3, test_data = test_ds)
 cf3
 
 ##############
 col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real")]
 
-cf4 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+glm_4 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf4 <- get_confusion_matrix(model_fit= glm_4, test_data = test_ds)
 cf4
 ##############
 col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "launched_month")]
 
-cf5 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+glm_5 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf5 <- get_confusion_matrix(model_fit= glm_5, test_data = test_ds)
 cf5
 
 ##############
 col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "launched_month", "launched_day_of_week")]
 
-cf6 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+glm_6 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf6 <- get_confusion_matrix(model_fit= glm_6, test_data = test_ds)
 cf6
 
 
@@ -344,6 +357,38 @@ cf6_accuracy <- get_accuracy(cf6$table)
 
 accuracy_results <- list()
 accuracy_results['GLM'] =  cf6_accuracy
+
+
+
+step.model <- glm_6 %>% stepAIC(trace = FALSE)
+coef(step.model)
+
+# Estimate the stepwise state probability
+step_prob <- round(predict(step.model, test_ds, type="response"))
+library(pROC)
+ROC <- roc( test_ds$state , step_prob)
+plot(ROC, col = "red")
+auc(ROC)
+# Prediction accuracy
+step_accuracy <- mean(step_prob == test_ds$state)
+accuracy_results['Stepwise Regression Accuracy'] =  step_accuracy
+accuracy_results
+
+#classification trees
+ct_model <- rpart(state ~ ., data = lm_ds, method = "class", control = rpart.control(cp = 0))
+
+# Make a prediction for the test sections
+ct_pred <- predict(ct_model, test_ds, type = "type")
+rpart.plot(ct_model)
+
+# Plot the ct_model with customized settings
+rpart.plot(ct_model, type = 3, box.palette = c("red", "green"), fallen.leaves = TRUE)
+ct_table <- table(test_ds$state, ct_pred)
+
+# Compute the accuracy on the test dataset
+ct_accuracy <- mean(test_ds$state == ct_pred)
+accuracy_results['Classification Trees'] =  ct_accuracy
+#is this overfitted?
 
 #try a random forest prediction - this doesn't work because there are more then 53 categories?
 
