@@ -375,10 +375,10 @@ accuracy_results['Stepwise Regression Accuracy'] =  step_accuracy
 accuracy_results
 
 #classification trees
-ct_model <- rpart(state ~ ., data = lm_ds, method = "class", control = rpart.control(cp = 0))
+ct_model <- rpart(state ~ ., data = lm_ds, method = "class", control = rpart.control(maxdepth = 5, minsplit=200))
 
 # Make a prediction for the test sections
-ct_pred <- predict(ct_model, test_ds, type = "type")
+ct_pred <- predict(ct_model, test_ds, type = "class")
 rpart.plot(ct_model)
 
 # Plot the ct_model with customized settings
@@ -388,9 +388,24 @@ ct_table <- table(test_ds$state, ct_pred)
 # Compute the accuracy on the test dataset
 ct_accuracy <- mean(test_ds$state == ct_pred)
 accuracy_results['Classification Trees'] =  ct_accuracy
-#is this overfitted?
+#is this overfitted? - doesn't seem to be any different then GLM
 
+# Compute the accuracy on the test dataset
+ct_accuracy <- mean(test_ds$state == ct_pred)
+accuracy_results['Classification Trees'] =  ct_accuracy
 #try a random forest prediction - this doesn't work because there are more then 53 categories?
+
+
+#try pruning
+ct_prune_model <- rpart(state ~ ., data = lm_ds, method = "class", control = rpart.control(cp=0))
+#we examing the complexity parameter with the following complexity plot.
+plotcp(ct_prune_model, minline = TRUE)
+#It's obvious here that the X-val relative error is around 0.8. We prune the tree around the correstponding cp value.
+m_pruned <- prune(ct_prune_model, cp = 0.00015)
+ct_pred_pruned <- predict(m_pruned, test_ds, type = "class")
+ct_pruned_table <- table(test_ds$state, ct_pred_pruned)
+ct_pruned_accuracy <- get_accuracy(ct_pruned_table)
+accuracy_results['Pruned Classification Trees with pruned cp=0.00015'] =  ct_pruned_accuracy
 
 #ds <- ds %>% select(-backers, -pledged_ratio)
 ds_matrix_data <- data.frame(model.matrix( ~ . -1 , ds))
@@ -407,7 +422,7 @@ matrix_testset <- ds_matrix_data[-idx , ]
 
 
 #we can now use the random forest with the various dummy variables
-rf.fit <- randomForest(state ~ . , matrix_trainset[sample(dim(matrix_trainset)[1] , 50000) , ] , ntree = 500)
+rf.fit <- randomForest(state ~ . , matrix_trainset[sample(dim(matrix_trainset)[1] , 50000) , ] , ntree = 200)
 
 rf_preds <- predict(rf.fit , matrix_testset)
 # Confusion Matrix of test set
@@ -416,7 +431,7 @@ rf_cf_matrix
 
 cf_accuracy <- get_accuracy(rf_cf_matrix)
 
-accuracy_results['Random Forest'] = cf_accuracy
+accuracy_results['Random Forest, ntree=200'] = cf_accuracy
 
 #next, we'll try K Nearest Neighbors
 
