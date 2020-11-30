@@ -17,8 +17,10 @@ if(!require(e1071)) install.packages("e1071", dependencies=TRUE)
 if(!require(rpart)) install.packages("rpart", dependencies=TRUE)
 if(!require(rpart.plot)) install.packages("rpart.plot", dependencies=TRUE)
 if(!require(MASS)) install.packages("MASS", dependencies=TRUE)
+if(!require(httr)) install.packages("httr", dependencies=TRUE)
+if(!require(readr)) install.packages("readr", dependencies=TRUE)
 
-
+library(readr)
 library(MASS)
 library(rpart)
 library(rpart.plot)
@@ -40,16 +42,18 @@ library(GGally)
 library(broom)
 library(caret)
 library(ranger)
+library(httr)
 
-data_dir <- paste(getwd(), "/data/", sep = "")
 
-data <- read_csv(paste(data_dir, "ks-projects-201801.csv", sep = ""))
+file_path <- "https://raw.githubusercontent.com/mganopolsky/kickstarter/master/data/ks-projects-201801.csv"
 
+
+data  <-read_csv(file_path)
 glimpse(data)
 #There aree 378,661 rows
 
 #according to the documentatino, `usd pledged` isn't needed since there is the usd_pledged_real, so I'll remove it
-ds <- data %>% select(-`usd pledged`)
+ds <- data %>% dplyr::select(-`usd pledged`)
 
 #Add a campaign length in days (time_int), pledged ratio (how much has been pledged vs what the goal is), 
 #as well as the average pledge per backer, per project
@@ -182,12 +186,12 @@ mean_median_goal <- ds %>% filter(state %in% c('successful' , 'failed')) %>% gro
 #ds_goal_xlabs <- c(0, mean_median_goal[2,]["median"], mean_median_pledged[2,]["max"])
 
 
-ds1 <- ds %>% filter(state %in% c('successful' , 'failed')) %>% select(state , usd_pledged_real) %>%
+ds1 <- ds %>% filter(state %in% c('successful' , 'failed')) %>% dplyr::select(state , usd_pledged_real) %>%
   ggplot(aes(usd_pledged_real , fill = state)) + geom_density(alpha = 0.65) + 
   labs(x = 'Pledged Amount (USD)' , title = 'Pledged Value Distribution') +
   scale_x_discrete(labels=function(l) {    paste0(round(l/1e6,2),"m")  }) 
 
-ds2 <- ds %>% filter(state %in% c('successful' , 'failed')) %>% select(state , usd_pledged_real) %>%
+ds2 <- ds %>% filter(state %in% c('successful' , 'failed')) %>% dplyr::select(state , usd_pledged_real) %>%
   ggplot(aes(usd_pledged_real +1 , fill = state)) + geom_density(alpha = 0.65) + 
   scale_x_log10(labels=function(l) {    paste0(round(l/1e3,2),"k")  }) +
   labs(x = "log-tranform Goal Amount (K's USD)", title = "Logarithmic Pledged Goal Distribution in $K's") + 
@@ -195,18 +199,18 @@ ds2 <- ds %>% filter(state %in% c('successful' , 'failed')) %>% select(state , u
   geom_vline(data = mean_median_pledged, aes(xintercept = median,  linetype = state), size=1, color="darkred") + 
   geom_vline(data = mean_median_pledged, aes(xintercept = mean,  linetype = state), size=1, color="darkgreen") +
   
-  geom_text_repel(data = mean_median_pledged %>% select(state, mean), 
+  geom_text_repel(data = mean_median_pledged %>% dplyr::select(state, mean), 
                   aes(x=mean, y =1, label=paste(state, " mean \nof $",mean), color=state, angle=30), nudge_x = 5) +
-  geom_text_repel(data = mean_median_pledged %>% select(state, median), 
+  geom_text_repel(data = mean_median_pledged %>% dplyr::select(state, median), 
                   aes(x=median, y =.5, label=paste(state, " median \nof $",median), color=state, angle=30),
                    nudge_x = -5) 
   
-ds3 <- ds %>% filter(state %in% c('successful' , 'failed')) %>% select(state , usd_goal_real) %>%
+ds3 <- ds %>% filter(state %in% c('successful' , 'failed')) %>% dplyr::select(state , usd_goal_real) %>%
   ggplot(aes(usd_goal_real , fill = state)) + geom_density(alpha = 0.65) + 
   labs(x = 'Goal Amount (USD)' , title = 'Goal Value Distribution') + 
   scale_x_discrete(labels=function(l) {    paste0(round(l/1e6,2),"m")  }) 
 
-ds4 <- ds %>% filter(state %in% c('successful' , 'failed')) %>% select(state , usd_goal_real) %>%
+ds4 <- ds %>% filter(state %in% c('successful' , 'failed')) %>% dplyr::select(state , usd_goal_real) %>%
   ggplot(aes(usd_goal_real +1 , fill = state)) + geom_density(alpha = 0.65) + 
   scale_x_log10(labels=function(l) {    paste0(round(l/1e6,2),"m")  }) +
   labs(x = "log-tranform Goal Amount (MM's USD)", title = "Logarithmic Pledged Goal Distribution in $MM's") + 
@@ -214,9 +218,9 @@ ds4 <- ds %>% filter(state %in% c('successful' , 'failed')) %>% select(state , u
   geom_vline(data = mean_median_goal, aes(xintercept = median,  linetype = state), size=1, color="darkred") + 
   geom_vline(data = mean_median_goal, aes(xintercept = mean,  linetype = state), size=1, color="darkgreen") +
   
-  geom_text_repel(data = mean_median_goal %>% select(state, mean), 
+  geom_text_repel(data = mean_median_goal %>% dplyr::select(state, mean), 
                   aes(x=mean, y =1, label=paste(state, " mean \nof $",mean), color=state, angle=30), nudge_x = 10) +
-  geom_text_repel(data = mean_median_goal %>% select(state, median), 
+  geom_text_repel(data = mean_median_goal %>% dplyr::select(state, median), 
                   aes(x=median, y =.5, label=paste(state, " median \nof $",median), color=state, angle=30),
                   nudge_x = -5, nudge_y = 3 ) 
 
@@ -256,7 +260,7 @@ round(quantile(ds$pledged_ratio[ds$state == 'successful'] , probs = seq(0.1 , 0.
 #create a binary field to show failed / successful campaign
 
 #select all the necessary columns, with the "state" being the last one - important for the matrix of dummy variables  later
-ds <- ds %>% select(category ,  country , usd_goal_real ,  time_int ,  launched_day_of_week, launched_month, state ) %>% 
+ds <- ds %>% dplyr::select(category ,  country , usd_goal_real ,  time_int ,  launched_day_of_week, launched_month, state ) %>% 
   filter(state %in% c('successful' , 'failed')) %>% 
   mutate(state = as.factor(ifelse(state == 'successful' , 1 , 0))) %>%
   mutate_if(is.character , as.factor)
@@ -290,7 +294,7 @@ get_confusion_matrix <- function(model_fit, test_data)
   aug_model <- augment(model_fit, newdata = test_data, type.predict = 'response')
   
   result <- aug_model %>% mutate(Prediction = factor(round(.fitted)), Reference = state) %>%   
-    select(Reference , Prediction ) %>% table()
+    dplyr::select(Reference , Prediction ) %>% table()
   
   return (caret::confusionMatrix(result))
 }
