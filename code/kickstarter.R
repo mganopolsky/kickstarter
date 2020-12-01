@@ -17,7 +17,6 @@ if(!require(e1071)) install.packages("e1071", dependencies=TRUE)
 if(!require(rpart)) install.packages("rpart", dependencies=TRUE)
 if(!require(rpart.plot)) install.packages("rpart.plot", dependencies=TRUE)
 if(!require(MASS)) install.packages("MASS", dependencies=TRUE)
-if(!require(httr)) install.packages("httr", dependencies=TRUE)
 if(!require(readr)) install.packages("readr", dependencies=TRUE)
 
 library(readr)
@@ -42,12 +41,10 @@ library(GGally)
 library(broom)
 library(caret)
 library(ranger)
-library(httr)
 
 
+#the data is stored in my github account, available publically.
 file_path <- "https://raw.githubusercontent.com/mganopolsky/kickstarter/master/data/ks-projects-201801.csv"
-
-
 data  <-read_csv(file_path)
 glimpse(data)
 #There aree 378,661 rows
@@ -64,7 +61,8 @@ ds <- ds %>% mutate(time_int = as.numeric(deadline - as.Date(launched)) ,
                     pledged_ratio = round(usd_pledged_real / usd_goal_real, 2),
                     avg_backer_pldg = round(usd_pledged_real/backers) ) %>%
             mutate(launched_month = as.factor(format(launched, "%m")),
-                    launched_day_of_week = as.factor(format(launched, "%u")  ))
+                    launched_day_of_week = as.factor(format(launched, "%u")  ),
+                   country_and_currency_combo = as.factor(paste( country   , currency, sep = "_")))
 
 
 
@@ -101,6 +99,7 @@ ds$state <- as.factor(ds$state)
 ds$country  <- as.factor(ds$country )
 ds$launched_month <- as.factor(ds$launched_month)
 ds$launched_day_of_week <- as.factor(ds$launched_day_of_week)
+ds$country_and_currency_combo <- as.factor(ds$country_and_currency_combo)
 
 #let's look at the levels of each of these factors
 levels(ds$category)
@@ -260,7 +259,8 @@ round(quantile(ds$pledged_ratio[ds$state == 'successful'] , probs = seq(0.1 , 0.
 #create a binary field to show failed / successful campaign
 
 #select all the necessary columns, with the "state" being the last one - important for the matrix of dummy variables  later
-ds <- ds %>% dplyr::select(category ,  country , usd_goal_real ,  time_int ,  launched_day_of_week, launched_month, state ) %>% 
+ds <- ds %>% dplyr::select(category ,  country , usd_goal_real ,  time_int ,  launched_day_of_week, 
+                           launched_month, country_and_currency_combo, state ) %>% 
   filter(state %in% c('successful' , 'failed')) %>% 
   mutate(state = as.factor(ifelse(state == 'successful' , 1 , 0))) %>%
   mutate_if(is.character , as.factor)
@@ -277,14 +277,6 @@ results_GLM <- function(train_data, test_data, predicted_field_name, predictors_
   fm <- as.formula(fm_string)
   
   glm_fit <- glm(fm , train_data, family = binomial)
-  #aug_glm_model <- augment(glm.fit, newdata = test_data, type.predict = 'response')
-  
-  #result <- aug_glm_model %>% mutate(Prediction = factor(round(.fitted)), Reference = state) %>%   
-  #  select(Reference , Prediction ) %>% table()
-  
-  #return (caret::confusionMatrix(result))
-  
-  #return (get_confusion_matrix(model_fit= glm.fit, test_data = test_data))
   return (glm_fit)
 }
 
@@ -308,75 +300,12 @@ get_accuracy <- function(cf_matrix)
 #since the outcome is a factor and not just numeric, we can't use simple linear regression to calculate this. we need to use GLM
 #predictions based solely on category
 
+accuracy_results <- list()
+
 set.seed(1, sample.kind="Rounding")
 test_lm_index <- createDataPartition(y = ds$state, times = 1, p = 0.2) %>% unlist()
 lm_ds <- ds[-test_lm_index,]
 test_ds <- ds[test_lm_index,]
-
-columns <- colnames(ds)
-col_subset <- columns[columns %in% c("category")]
-
-glm_1 <- results_GLM(lm_ds, test_ds, "state", col_subset)
-cf1 <- get_confusion_matrix(model_fit= glm_1, test_data = test_ds)
-cf1
-#################
-#category AND time interval in days
-col_subset <- columns[columns %in% c("category", "time_int", "country")]
-
-glm_2 <- results_GLM(lm_ds, test_ds, "state", col_subset)
-cf2 <- get_confusion_matrix(model_fit= glm_2, test_data = test_ds)
-cf2
-
-
-#################
-#category AND time AND country interval in days
-col_subset <- columns[columns %in% c("category", "time_int", "country")]
-
-glm_3 <- results_GLM(lm_ds, test_ds, "state", col_subset)
-cf3 <- get_confusion_matrix(model_fit= glm_3, test_data = test_ds)
-cf3
-
-##############
-col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real")]
-
-glm_4 <- results_GLM(lm_ds, test_ds, "state", col_subset)
-cf4 <- get_confusion_matrix(model_fit= glm_4, test_data = test_ds)
-cf4
-##############
-col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "launched_month")]
-
-glm_5 <- results_GLM(lm_ds, test_ds, "state", col_subset)
-cf5 <- get_confusion_matrix(model_fit= glm_5, test_data = test_ds)
-cf5
-
-##############
-col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "launched_month", "launched_day_of_week")]
-
-glm_6 <- results_GLM(lm_ds, test_ds, "state", col_subset)
-cf6 <- get_confusion_matrix(model_fit= glm_6, test_data = test_ds)
-cf6
-
-
-cf6_accuracy <- get_accuracy(cf6$table)
-
-accuracy_results <- list()
-accuracy_results['GLM'] =  cf6_accuracy
-
-
-
-step.model <- glm_6 %>% stepAIC(trace = FALSE)
-coef(step.model)
-
-# Estimate the stepwise state probability
-step_prob <- round(predict(step.model, test_ds, type="response"))
-library(pROC)
-ROC <- roc( test_ds$state , step_prob)
-plot(ROC, col = "red")
-auc(ROC)
-# Prediction accuracy
-step_accuracy <- mean(step_prob == test_ds$state)
-accuracy_results['Stepwise Regression Accuracy'] =  step_accuracy
-accuracy_results
 
 #classification trees
 ct_model <- rpart(state ~ ., data = lm_ds, method = "class", control = rpart.control(maxdepth = 5, minsplit=200))
@@ -391,25 +320,24 @@ ct_table <- table(test_ds$state, ct_pred)
 
 # Compute the accuracy on the test dataset
 ct_accuracy <- mean(test_ds$state == ct_pred)
-accuracy_results['Classification Trees'] =  ct_accuracy
+accuracy_results['Classification Trees'] <-  ct_accuracy
 #is this overfitted? - doesn't seem to be any different then GLM
 
-# Compute the accuracy on the test dataset
-ct_accuracy <- mean(test_ds$state == ct_pred)
-accuracy_results['Classification Trees'] =  ct_accuracy
-#try a random forest prediction - this doesn't work because there are more then 53 categories?
-
-
-#try pruning
+# this accuracy of ct_accuracy is pretty low; but what if we try post-pruning the tree, 
+#initially running with complexity parameter = 0, and then pruning the tree where the CP ends up being the lowest
 ct_prune_model <- rpart(state ~ ., data = lm_ds, method = "class", control = rpart.control(cp=0))
 #we examing the complexity parameter with the following complexity plot.
 plotcp(ct_prune_model, minline = TRUE)
-#It's obvious here that the X-val relative error is around 0.8. We prune the tree around the correstponding cp value.
-m_pruned <- prune(ct_prune_model, cp = 0.00015)
+#now we find the actual min cp
+prune_table <- data.frame(ct_prune_model$cptable)
+min_cp <- prune_table[which.min(prune_table$xerror),1]
+
+#It's obvious here that the X-val relative error is around 0.8. We find that exact value, and prune the tree around the correstponding cp value.
+m_pruned <- prune(ct_prune_model, cp = min_cp)
 ct_pred_pruned <- predict(m_pruned, test_ds, type = "class")
 ct_pruned_table <- table(test_ds$state, ct_pred_pruned)
 ct_pruned_accuracy <- get_accuracy(ct_pruned_table)
-accuracy_results['Pruned Classification Trees with pruned cp=0.00015'] =  ct_pruned_accuracy
+accuracy_results[paste('Pruned Classification Trees with pruned cp=', min_cp, sep="")] <-  ct_pruned_accuracy
 
 #ds <- ds %>% select(-backers, -pledged_ratio)
 ds_matrix_data <- data.frame(model.matrix( ~ . -1 , ds))
@@ -423,8 +351,6 @@ idx <- sample(dim(ds_matrix_data)[1] , dim(ds_matrix_data)[1]*0.80 , replace = F
 matrix_trainset <- ds_matrix_data[idx , ]
 matrix_testset <- ds_matrix_data[-idx , ]
 
-
-
 #we can now use the random forest with the various dummy variables
 rf.fit <- randomForest(state ~ . , matrix_trainset[sample(dim(matrix_trainset)[1] , 50000) , ] , ntree = 200)
 
@@ -435,22 +361,24 @@ rf_cf_matrix
 
 cf_accuracy <- get_accuracy(rf_cf_matrix)
 
-accuracy_results['Random Forest, ntree=200'] = cf_accuracy
+accuracy_results['Random Forest, ntree=200'] <- cf_accuracy
 
 #next, we'll try K Nearest Neighbors
 
-knn_cl <- matrix_trainset[,ncol(matrix_trainset), drop = TRUE]
+
+#K Nearest Neighbors retursn a decent response - however, it takes 5 hours to run. will skip it here.
+#knn_cl <- matrix_trainset[,ncol(matrix_trainset), drop = TRUE]
 #knn.fit <- class::knn(train=lm_ds[-ncol(lm_ds)], test=test_ds[-ncol(test_ds)] , cl=knn_cl)
 
 
-#try for 10 neightbors - does that work? 
-knn.fit45 <- caret::knn3Train(train=matrix_trainset[-ncol(matrix_trainset)], test=matrix_testset[-ncol(matrix_testset)] ,
-                             cl=knn_cl, k=45)
+#knn algorithm geets a decent return for k=45. however, this takes many many hours. 
+#knn.fit45 <- caret::knn3Train(train=matrix_trainset[-ncol(matrix_trainset)], test=matrix_testset[-ncol(matrix_testset)] ,
+#                             cl=knn_cl, k=45)
 
-state_actual <- matrix_testset$state
-knn_tbl45 <- table(state_actual, knn.fit45)
-knn_accuracy45 <- get_accuracy(knn_tbl45)
-accuracy_results['K Nearest Neighbors - k=45'] = knn_accuracy45
+#state_actual <- matrix_testset$state
+#knn_tbl45 <- table(state_actual, knn.fit45)
+#knn_accuracy45 <- get_accuracy(knn_tbl45)
+#accuracy_results['K Nearest Neighbors - k=45'] = knn_accuracy45
 
 #now we will try to use Naive Bayes Model
 nb <- naive_bayes(state ~ ., lm_ds, laplace = 1)
@@ -461,7 +389,7 @@ nb_fit <- predict(nb, test_ds, type = "class")
 nb_tbl <- table(test_ds$state, nb_fit)
 nb_accuracy <- get_accuracy(nb_tbl)
 
-accuracy_results['Naive Bayes'] = nb_accuracy
+accuracy_results['Naive Bayes'] <- nb_accuracy
 
 
 #trying NB with matrix dummy variables
@@ -473,12 +401,81 @@ nb_m_fit <- predict(nb_m, matrix_testset[-ncol(matrix_testset)], type = "class")
 nb_m_tbl <- table(matrix_testset$state, nb_m_fit)
 nb_m_accuracy <- get_accuracy(nb_m_tbl)
 
-accuracy_results['Naive Bayes w/matrix dummy variables'] = nb_m_accuracy
+accuracy_results['Naive Bayes w/matrix dummy variables'] <- nb_m_accuracy
 accuracy_results
 
-normalize <- function(x) {
-  return((x - min(x)) / (max(x) - min(x)) )
-}
+
+
+columns <- colnames(ds)
+col_subset <- columns[columns %in% c("category")]
+
+#glm_1 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+#cf1 <- get_confusion_matrix(model_fit= glm_1, test_data = test_ds)
+#cf1
+
+#################
+#category AND time interval in days
+col_subset <- columns[columns %in% c("category", "time_int")]
+
+glm_2 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf2 <- get_confusion_matrix(model_fit= glm_2, test_data = test_ds)
+cf2
+cf2_accuracy <- get_accuracy(cf2$table)
+accuracy_results['GLM cf2'] =  cf2_accuracy
+
+#################
+#category AND time AND country interval in days
+col_subset <- columns[columns %in% c("category", "time_int", "country")]
+
+glm_3 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf3 <- get_confusion_matrix(model_fit= glm_3, test_data = test_ds)
+cf3
+cf3_accuracy <- get_accuracy(cf3$table)
+accuracy_results['GLM cf3'] =  cf3_accuracy
+##############
+col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real")]
+
+glm_4 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf4 <- get_confusion_matrix(model_fit= glm_4, test_data = test_ds)
+cf4
+
+cf4_accuracy <- get_accuracy(cf4$table)
+accuracy_results['GLM cf4'] =  cf4_accuracy
+##############
+col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "launched_month")]
+
+glm_5 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf5 <- get_confusion_matrix(model_fit= glm_5, test_data = test_ds)
+cf5
+cf6_accuracy <- get_accuracy(cf6$table)
+accuracy_results['GLM cf5'] =  cf5_accuracy
+
+
+##############
+col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "launched_month", "launched_day_of_week")]
+
+glm_6 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf6 <- get_confusion_matrix(model_fit= glm_6, test_data = test_ds)
+cf6
+
+
+cf6_accuracy <- get_accuracy(cf6$table)
+accuracy_results['GLM cf6'] =  cf6_accuracy
+
+col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "launched_month", "launched_day_of_week", "country_and_currency_combo")]
+
+glm_7 <- results_GLM(lm_ds, test_ds, "state", col_subset)
+cf7 <- get_confusion_matrix(model_fit= glm_7, test_data = test_ds)
+cf7
+
+
+cf7_accuracy <- get_accuracy(cf7$table)
+
+accuracy_results['GLM cf7'] =  cf7_accuracy
+
+
+
+
 
 
 

@@ -50,22 +50,20 @@ This is Marina Ganopolsky's implementation of the **Choose Your Own Project** of
 **The objectives of this project are:**
 
 
-1. To find a dataset on which to conduct Exploratory Data Analysis (EDA), and on which to perform **machine learning tasks**.
-2. To use as least 2 methods beyond linear gregression during the project.
-3. To achieve an accurace of **> 50%**, and validate this with the **test data set**, as described below.
+1. To find a dataset on which to conduct Exploratory Data Analysis (EDA), Feature Engineering, and on which to perform **machine learning tasks**.
+2. To use as least 2 methods beyond linear regression during the project.
+3. To achieve an accuracy of **> 50%**, and validate this with the **test data set**, as described below.
 3. To summarize the findings, draw conclusions, and provide further recommendations, if needed.
 
-The dataset I have chosen is the Kickstarter Dataset from Kaggle, use during the project beyond the manipulations suggested in the assignment; the modifications will be shown in the **Dataset** section below. 
+The dataset I have chosen is the [Kickstarter Dataset from Kaggle](https://www.kaggle.com/kemical/kickstarter-projects?select=ks-projects-201801.csv). 
+A quick summary of the data wrangling modifications will be provided, as well as some visual representations of patterns present in the data, in the **Method and Analysis** section. This will inform the reader about the various trends present in the dataset.
 
-A quick summary of the data wrangling modifications will be provided, as well as some visual representations of patterns present in the data, in the **Method and Analysis** section. This will inform the reader about the various trends present in the dataset. 
+An exploratory analysis will be performed to generate the predicted succeses levels of the Kickstarter Project, with various models, to be specified; a best-performing algorithm will be chosen, and the results of the calculations will be analyzed and explained; finally a conclusion will be provided.
 
-An exploratory analysis will be performed to generate predicted succeses levels of the Kickstarter Project, with various models, to be specified; a best-performing algorithm will be chosen, and the results of the calculations will be analyzed and explained; finally a conclusion will be provided.
 
-###############
+Several models will be developed, ranging from the most naive to the most complex. These will be tested and compared using the resulting RMSE in order to assess their quality. In contrast to the MovieLens project there is no ideal evaluation criteria for this project. However, since we have several models available, and we will pick the model with the highest accuracy as the chosen model to produce the accuracy of the model.
 
-Seven (7) models will be developed, ranging from the most naive to the most complex. These will be tested and compared using the resulting RMSE in order to assess their quality.  The ideal evaluation criteria for this project, as specified by the assignment, is a RMSE that is expected to be lower than **`r threshold_value`**.
-
-After evaluating every available algorithm I have come up with using the RMSE, the best-resulting model will be used on the **validation dataset** to evaluate the quality of the predictions of the movie ratings.
+The data is broken into a **training dataset** (80%), and a **testing dataset**(20%). After evaluating every available algorithm I have come up with, the best-resulting model will be used on the **test dataset** to evaluate the quality of the predictions of the movie ratings. 
 
 This project can be found on **GitHub** under **https://github.com/mganopolsky/r_final_harvard_data_science_project**.   
 
