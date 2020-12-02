@@ -38,9 +38,6 @@ knitr::read_chunk('kickstarter.R')
 threshold_value <- 0.5
 ```
 
-```{r, lambda_plot_names, echo=FALSE}
-```
-
 \pagebreak
 
 # Overview
@@ -65,71 +62,49 @@ Several models will be developed, ranging from the most naive to the most comple
 
 The data is broken into a **training dataset** (80%), and a **testing dataset**(20%). After evaluating every available algorithm I have come up with, the best-resulting model will be used on the **test dataset** to evaluate the quality of the predictions of the movie ratings. 
 
-This project can be found on **GitHub** under **https://github.com/mganopolsky/r_final_harvard_data_science_project**.   
+This project can be found on **GitHub** [here](https://github.com/mganopolsky/kickstarter) .   
 
 ## Dataset
-
-The MovieLens dataset is automatically downloaded with the code provided; The data sets can be additionally downloaded here, both in zip format and folders:
-
-* https://grouplens.org/datasets/movielens/10m/
-
-* http://files.grouplens.org/datasets/movielens/ml-10m.zip
-
-As specified by the project description (and the provided code) the data is split into a validation set and the "rest". Furthermore, after it was manipulated, the data is again split into **testing** and **training** sets, so as to evaluate the quality of the predictions. The calculations and algorithm verification are done on the testing and training sets, and after the final model is chosen, this algorithm is applied to the validation test to verify the hypothesis.
-
-A fair amount of data manipulation has been done to the datasets created with the provided code. The changes include:
-
-* **New Field** : Adding a ratings average per movie in **avg_rating**
-* **New Field** : Extracting the release year of the movie from its title. (Every movie title seems to include the release year in at the end of title, surrounded by parentheses.) and creating the field **release_year** with the information
-* **New Field** : Creating a field called **rating_date** , by extracting the rating date from the **timestamp** field
-* **New Field** : Creating a field called **age_of_movie**, by subtracting the year the film was released from the year parameter of the current date
-* **New Field** : Creating a field called **rating_year** by extracting the rating year from the **rating_date** field.
-
-* Removing the year from the movie title
-* Removing films with **3 reviews or less**.
-* Removing the parentheses from the **release_year** and converting it to a numerical field
-* After the data wrangling is complete, the dataset is split up into :
-  + **A validation set**, comprised of **10%** of the data complete data; this portion of the data shall not to be analyzed until the final algorithm is found to have an RMSE to be within acceptable range 
-  + **A training dataset** - the data the algorithms will be trained on, 90% of the remaining data.
-  + **A testing dataset** - the data the intermediate algorithms will be tested on, 10% of the remaining data.
-
-
 ```{r, libraries, echo=FALSE, include=FALSE, results='hide', warning=FALSE}
 ```
 
-```{r eval=TRUE, cache=FALSE, echo=FALSE, include=FALSE, results='hide', warning=FALSE}
-if (file.exists(marinas_directory)){
-  print("directory exists!")
-  setwd(marinas_directory)
-  print(getwd())
-} 
-repo <- getwd()
-archivist::setLocalRepo(repo)
-hash <- archivist::searchInLocalRepo("name:movielens")
-archivist::loadFromLocalRepo(hash)
-hash <- archivist::searchInLocalRepo("name:rating_avgs")
-archivist::loadFromLocalRepo(hash)
+```{r, load_data, echo=FALSE, include=FALSE, results='hide', warning=FALSE}
 ```
 
-I will re-iterate that the algorithm development and tuning will be conducted on the **training** and **testing** data set, and the validation set will be used to evaluate the final chosen algorithm. **During no other time will the validation dataset be used.**
+The **Kickstarter** dataset is automatically downloaded with the code provided; The data sets can be additionally downloaded here:
 
-As a first step, in order to get some basic information about the data we're working with, we examine the **```movielens```** dataset. The original dataset contains six variables :
+* https://raw.githubusercontent.com/mganopolsky/kickstarter/master/data/ks-projects-201801.csv
 
-* **userId**
-* **movieId**
-* **rating**
-* **timestamp** 
-* **title**
-* **genres**
+As specified by the project description (and the provided code) the data is split into a **test set (20%)** and the **training set(80%)**, after some feature engineering is applied to it. The calculations and algorithm verification are done on the training set, and each algorithm is tested on the test set.
 
-After massaging the data a bit, the following fields were added, as derived from the existing fields : 
+As a first step, in order to get some basic information about the data we're working with, we examine the **```kickstarter```** dataset. The original dataset contains 15 variables :
+```{r, glimpse_data, echo=TRUE, include=TRUE, warning=FALSE}
+```
 
-* **avg_rating** - the mean rating of the film (same value across the same ```movieId```)
-* **release_year** - the numeric release year of the film
-* **rating_date** - the date the rating was submitted
-* **age_of_movie** - the age of the film in years (same value for the same ```movieId```)
-* **rating_year** - the numeric date the rating was submitted
-* **rating_count** - the cumulative number of ratings submitted for the film (same value across the same ```movieId```)
+A fair amount of data manipulation has been done to the datasets created with the provided code. The changes include:
+```{r, massage_data, echo=FALSE, include=FALSE, results='hide', warning=FALSE}
+```
+* **New Field** : Adding a time interval in days, as the difference between the launch date and the deadline date : **time_int**
+* **New Field** : Extracting the month of the year from the launch date, as saving it as a factor in **launched_month**
+* **New Field** : Extracting the year from the launch date, as saving it as a factor in **launched_year**
+* **New Field** : Extracting the day of the week from the launch date, as saving it as a factor in **launched_day_of_week**
+* **New Field** : Added a field as a rounded numeric representing the pledge:goal ratio in USD **pledged_ratio**
+* **New Field** : Added a field as a rounded numeric representing the average pledge per backer in USD **avg_backer_pldg**
+* Changed the **launched** field into a date (as opposed to a date/time field)
+* **Removed Field** : Removed the  **`usd pledged`** field, as there was the usd_pledged_real represented what was actually needed.
+
+* After the data wrangling and data visualization exercises (see below) are complete, the dataset is split up into :
+  + **A training dataset** - the data the algorithms will be trained on, **80%** of the remaining data.
+  + **A testing dataset** - the data the algorithms will be tested on, **20%** of the remaining data.
+
+Let's now take a look at the data we have:
+```{r, summary_ds, echo=TRUE, include=TRUE, warning=FALSE}
+```
+
+Glancing over the information most things seem fine at a first review; one thing that jumps out is the minimum value of the launched field, which is 1/1/1970. This is probably an error in the data - let's examine it:
+```{r, launched_ds, echo=TRUE, include=TRUE, warning=FALSE}
+```
+This is definitely an error in the data, for multiple reasons. Let's plot what time period this takes place during:
 
 \pagebreak
 
