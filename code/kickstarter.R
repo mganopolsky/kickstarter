@@ -359,7 +359,9 @@ ct_table <- table(test_ds$state, ct_pred)
 # Compute the accuracy on the test dataset
 ct_accuracy <- mean(test_ds$state == ct_pred)
 #accuracy_results['Classification Trees'] <-  ct_accuracy
-model_results <- tibble(model = "Classification Trees", accuracy = ct_accuracy) 
+model_results <- tibble(model = "Classification Trees mex depth=5,minsplit=200", accuracy = ct_accuracy) 
+
+
 
 
 # this accuracy of ct_accuracy is pretty low; but what if we try post-pruning the tree, 
@@ -380,13 +382,32 @@ cp.select <- function(big.tree) {
 
 cp <- cp.select(ct_prune_model)
 pruned.tree <- prune(ct_prune_model, cp = cp)
-ct_pred_pruned2 <- predict(pruned.tree, test_ds, type = "class")
-ct_pruned_table2 <- table(test_ds$state, ct_pred_pruned2)
-ct_pruned_accuracy2 <- get_accuracy(ct_pruned_table2)
+ct_pred_pruned <- predict(pruned.tree, test_ds, type = "class")
+ct_pruned_table <- table(test_ds$state, ct_pred_pruned)
+ct_pruned_accuracy <- get_accuracy(ct_pruned_table)
 #accuracy_results[paste('Pruned Classification Trees with pruned cp=', cp, sep="")] <-  ct_pruned_accuracy2
 
-cf_p_model_output <- tibble(model = paste('Pruned Classification Trees with pruned cp=', cp, sep=""), accuracy = ct_pruned_accuracy2) 
+cf_p_model_output <- tibble(model = paste('Pruned Classification Trees post-pruned cp=', cp, sep=""), accuracy = ct_pruned_accuracy) 
 model_results <- bind_rows(model_results, cf_p_model_output)
+
+
+
+ct_model_2 <- rpart(state ~ ., data = lm_ds, method = "class")
+ct_pred_2 <- predict(ct_model_2, test_ds, type = "class")
+
+# Plot the ct_model with customized settings
+ct_table2 <- table(test_ds$state, ct_pred_2)
+ct_accuracy2 <- get_accuracy(ct_table2)
+cp <- cp.select(ct_model_2)
+pruned2.tree <- prune(ct_model_2, cp = cp)
+ct_pred_pruned2 <- predict(pruned2.tree, test_ds, type = "class")
+ct_pruned_table2 <- table(test_ds$state, ct_pred_pruned2)
+ct_pruned_accuracy2 <- get_accuracy(ct_pruned_table2)
+#accuracy_results[paste('Post-Pruned Classification Trees, no default parameters, with pruned cp=', cp, sep="")] <-  ct_pruned_accuracy2
+
+cf_p2_model_output <- tibble(model = paste('Classification Trees, default params, post-pruned cp=', cp, sep=""), accuracy = ct_pruned_accuracy2) 
+model_results <- bind_rows(model_results, cf_p2_model_output)
+
 
 
 #ds <- ds %>% select(-backers, -pledged_ratio)
@@ -549,13 +570,11 @@ cf8_accuracy <- get_accuracy(cf8$table)
 cf8_model_output <- tibble(model = "GLM 8 predictors", accuracy = cf8_accuracy) 
 model_results <- bind_rows(model_results, cf8_model_output)
 
-
-#nb_m <- naive_bayes(state ~ ., data=matrix_trainset, type="class")
-
-# Classification
-#nb_m_fit <- predict(nb_m, matrix_testset[-ncol(matrix_testset)], type = "class")
-
-
+#sorted model results by accuracy 
+model_results <- model_results %>% arrange(desc(accuracy))
+top_model <- model_results[which.max(model_results$accuracy),]
+model_results
+top_model
 
 
 
