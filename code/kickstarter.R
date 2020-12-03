@@ -351,19 +351,19 @@ test_ds <- ds[test_lm_index,]
 ## ---- ct_model --------
 ct_model <- rpart(state ~ ., data = lm_ds, method = "class", control = rpart.control(maxdepth = 5, minsplit=200))
 ct_pred <- predict(ct_model, test_ds, type = "class")
-rpart.plot(ct_model)
+#rpart.plot(ct_model)
 
 # Plot the ct_model with customized settings
 rpart.plot(ct_model, type = 3, box.palette = c("red", "green"), fallen.leaves = TRUE)
 ct_table <- table(test_ds$state, ct_pred)
 # Compute the accuracy on the test dataset
-ct_accuracy <- mean(test_ds$state == ct_pred)
+ct_accuracy <- get_accuracy(ct_table)
 #accuracy_results['Classification Trees'] <-  ct_accuracy
 model_results <- tibble(model = "Classification Trees mex depth=5,minsplit=200", accuracy = ct_accuracy) 
 
 
 
-
+## ---- ct_pruned_model --------
 # this accuracy of ct_accuracy is pretty low; but what if we try post-pruning the tree, 
 #initially running with complexity parameter = 0, and then pruning the tree where the CP ends up being the lowest
 ct_prune_model <- rpart(state ~ ., data = lm_ds, method = "class", control = rpart.control(cp=0))
@@ -387,11 +387,11 @@ ct_pruned_table <- table(test_ds$state, ct_pred_pruned)
 ct_pruned_accuracy <- get_accuracy(ct_pruned_table)
 #accuracy_results[paste('Pruned Classification Trees with pruned cp=', cp, sep="")] <-  ct_pruned_accuracy2
 
-cf_p_model_output <- tibble(model = paste('Pruned Classification Trees post-pruned cp=', cp, sep=""), accuracy = ct_pruned_accuracy) 
+cf_p_model_output <- tibble(model = paste('cp=0 Classification Trees post-pruned with min cp=', cp, sep=""), accuracy = ct_pruned_accuracy) 
 model_results <- bind_rows(model_results, cf_p_model_output)
 
 
-
+## ---- ct_model_2 --------
 ct_model_2 <- rpart(state ~ ., data = lm_ds, method = "class")
 ct_pred_2 <- predict(ct_model_2, test_ds, type = "class")
 
@@ -410,30 +410,31 @@ model_results <- bind_rows(model_results, cf_p2_model_output)
 
 
 
-#ds <- ds %>% select(-backers, -pledged_ratio)
-ds_matrix_data <- data.frame(model.matrix( ~ . -1 , ds))
-
+## ---- randomForest --------
+#ds_matrix_data <- data.frame(model.matrix( ~ . -1 , ds))
 #rename the last column to 'state'
-colnames(ds_matrix_data)[ncol(ds_matrix_data)] = 'state'
-ds_matrix_data$state = as.factor(ds_matrix_data$state)
+#colnames(ds_matrix_data)[ncol(ds_matrix_data)] = 'state'
+#ds_matrix_data$state = as.factor(ds_matrix_data$state)
 
-set.seed(123)
-idx <- sample(dim(ds_matrix_data)[1] , dim(ds_matrix_data)[1]*0.80 , replace = FALSE)
-matrix_trainset <- ds_matrix_data[idx , ]
-matrix_testset <- ds_matrix_data[-idx , ]
+matrix_trainset <- data.frame(model.matrix( ~ . -1 , lm_ds))
+matrix_testset <- data.frame(model.matrix( ~ . -1 , test_ds))
+colnames(matrix_trainset)[ncol(matrix_trainset)] = 'state'
+colnames(matrix_testset)[ncol(matrix_testset)] = 'state'
+matrix_trainset$state = as.factor(matrix_trainset$state)
+matrix_testset$state = as.factor(matrix_testset$state)
+
+#set.seed(123)
+#idx <- sample(dim(ds_matrix_data)[1] , dim(ds_matrix_data)[1]*0.80 , replace = FALSE)
+#matrix_trainset <- ds_matrix_data[idx , ]
+#matrix_testset <- ds_matrix_data[-idx , ]
 
 #we can now use the random forest with the various dummy variables
 rf.fit <- randomForest::randomForest(formula=state ~ . , data=matrix_trainset[sample(dim(matrix_trainset)[1] , 70000) , ] , ntree = 200)
 
 
 rf_preds <- predict(rf.fit , matrix_testset)
-# Confusion Matrix of test set
 rf_cf_matrix <- table(Actual = matrix_testset$state , Predictions = rf_preds)
-rf_cf_matrix
-
 rf_accuracy <- get_accuracy(rf_cf_matrix)
-
-#accuracy_results['Random Forest, ntree=200'] <- rf_accuracy
 rf_model_output <- tibble(model = "Random Forest, ntree=200", accuracy = rf_accuracy) 
 model_results <- bind_rows(model_results, rf_model_output)
 
@@ -461,6 +462,7 @@ model_results <- bind_rows(model_results, rf_model_output)
 
 
 #now we will try to use Naive Bayes Model
+## ---- nb_default --------
 nb <- naive_bayes(state ~ ., lm_ds, laplace = 1)
 summary(nb)
 
@@ -468,33 +470,26 @@ summary(nb)
 nb_fit <- predict(nb, test_ds, type = "class")
 nb_tbl <- table(test_ds$state, nb_fit)
 nb_accuracy <- get_accuracy(nb_tbl)
-
-#accuracy_results['Naive Bayes'] <- nb_accuracy
 nb_model_output <- tibble(model = "Naive Bayes", accuracy = nb_accuracy) 
 model_results <- bind_rows(model_results, nb_model_output)
 
 #trying NB with matrix dummy variables
 #now we will try to use Naive Bayes Model
+## ---- nb_matrix --------
 nb_m <- naive_bayes(state ~ ., data=matrix_trainset, type="class")
-
-# Classification
 nb_m_fit <- predict(nb_m, matrix_testset[-ncol(matrix_testset)], type = "class")
 nb_m_tbl <- table(matrix_testset$state, nb_m_fit)
 nb_m_accuracy <- get_accuracy(nb_m_tbl)
-
-#accuracy_results['Naive Bayes w/matrix dummy variables'] <- nb_m_accuracy
 nb_d_model_output <- tibble(model = "Naive Bayes w/matrix dummy variables", accuracy = nb_m_accuracy) 
 model_results <- bind_rows(model_results, nb_d_model_output)
 
 
-
+## ---- glm_1 --------
 columns <- colnames(ds)
 col_subset <- columns[columns %in% c("category")]
-
 glm_1 <- results_GLM(lm_ds,  "state", col_subset)
 cf1 <- get_confusion_matrix(model_fit= glm_1, test_data = test_ds)
 cf1_accuracy <- get_accuracy(cf1$table)
-#accuracy_results['GLM 1 predictor'] =  cf1_accuracy
 cf1_model_output <- tibble(model = "GLM 1 predictor", accuracy = cf1_accuracy) 
 model_results <- bind_rows(model_results, cf1_model_output)
 

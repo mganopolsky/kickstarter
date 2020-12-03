@@ -223,240 +223,65 @@ Since we are trying to predict the variable **state** and it is **categorical**,
 
 ### 1. Classification Trees
 
-The first model I will attempt will be **classification trees**.
-```{r ct_model, echo=FALSE, include=FALSE, results='show'}
+The first model I will attempt will be **classification trees**. The initial attempt used the following parameters:
+1. maxdepth = 5 ( the maximum depth of any node of the final tree)
+2. minsplit = 200 ( the minimum number of observations that must be observed before splitting the tree)
+```{r ct_model, echo=FALSE, include=TRUE, results='show'}
 ```
 
-```{r lambda_plot_names, echo=FALSE, include=FALSE, results='hide'}
+The next attempt once again runs the model, but this time with all default parameters, save **cp**, the complexity parameter, which we set to 0. The logic behind this is that we make a detailed tree and prune it AFTER the model has run its course. **The plot of the cp values** is shown below, showing the optimal (lowest) value for the relative error. 
+
+```{r ct_pruned_model, echo=FALSE, include=TRUE, results='show'}
 ```
 
-To start out, we will examine the **mean rating**, and use that as the benchmark for evaluations, creating a model that assumes the same rating for all movies and users with all the differences explained by random variation,  $\varepsilon _{u,i}$.  The formula used for this is:
-$$Y_{u,i} = \mu  + \varepsilon_{u,i}$$
-$Y_{u,i}$ is the predicted rating per user, per movie and $\mu$ is the estimate that minimizes the root mean squared error — is the average rating of all movies across all users. The code below calculates $\mu$ on the training set of the data, and then uses the RMSE to predict the error of ratings of the test set.
-
-```{r , echo=FALSE, include=FALSE, results='hide'}
-hash <- archivist::searchInLocalRepo("name:rmse_results_output_0")
-archivist::loadFromLocalRepo(hash)
-```
-
-This value will be used with the RMSE function to test the accuracy with most naive version of the algorithm. The output is below:
+The code then selects this minimal value, **`r cp`**, and prunes the tree with that complexity paramter. The accuracy of the resulting model is **`r ct_pruned_accuracy`**. As I continue with the project, I will display results of the accuracy evaluations of every model, and print them out as shown below - so that the data can be reviewed as the project progresses.\newline
 
 ```{r  echo=FALSE}
-rmse_results_output_0 %>%  knitr::kable()
+model_results %>% knitr::kable()
 ```
 
+Next, still attempting to optimize classification trees, I will attempt to run the model with ALL default parameters set, and then again post-prune the resulting tree by finding the minimum **cp** parameter.  
 
-As I continue with the project, I will display results of the RMSE evaluation of every model, and print out the table as I have above - so that the data can be reviewed as the project progresses.\newline
-Taking the average of the existing ratings is a very naive predictor. We can see that the RMSE is > 1.0, which means this isn't a great prediction - as expected. In the rest of the project I will examine several better approaches.
-
-###  2. Movie effect model
-
-From the data analysis performed earlier, we've surmised that some movies will be rated higher then others - making the naive RMSE above clearly inferior to a more detailed approach. I will now build a model with accounting for bias per movie,  $b_{i}$ (since every movie will have some inherent bias, and some movies are clearly better (or worse) then others).
-
-$$Y_{u,i} = \mu  + b_{i} + \varepsilon_{u,i}$$
-$b_{i}$ is the average of $Y_{u,i}$, minus the overall mean for each movie $i$.
-To calculate the movie bias, we transform the formula to :
-$$b_{i} =  Y_{u,i} - \mu  - \varepsilon _{u,i}$$
-
-And run the RMSE algorithm on the test set again. The predictions improve significantly when we use this model, as shown below.
-
-```{r , echo=FALSE, include=FALSE, results='hide'}
-hash <- archivist::searchInLocalRepo("name:rmse_results_output_1")
-archivist::loadFromLocalRepo(hash)
-hash <- archivist::searchInLocalRepo("name:model_1_rmse")
-archivist::loadFromLocalRepo(hash)
+```{r ct_model_2, echo=FALSE, include=TRUE, results='show'}
 ```
+This time, the code selects a minimal cp value of  **`r cp`** to prune the tree. The accuracy of the resulting model is **`r ct_pruned_accuracy2`**. \newline
+```{r  echo=FALSE}
+model_results %>% knitr::kable()
+```
+
+###  2. Random Forest
+
+```{r ct_model_2, echo=FALSE, include=FALSE}
+```
+When first attempting to run the **random forest** algorithm on the data, it became obvious that the general implementation wouldn't be plausable here due to some of the factors (the categories in particular) having more then 32 levels. (This is a limitation of the random forest algorithm implementation in R.) Therefor, the data had to be converted into a matrix with dummy variables. A sample of 70,000 was taken to evaluate the training set; the processing time for this was very long - and in the future implementation of the model I will attempt to run random forest on a larger subset of data. The final random forest model accuracy with **200 trees and a 70,000 samples** was **`r rf_accuracy`**. \newline
 
 ```{r  echo=FALSE}
-rmse_results_output_1 %>% knitr::kable()
+model_results %>% knitr::kable()
 ```
-
-Adding a single **movie effect** to the model not only significantly reduces the RMSE to **`r model_1_rmse`**, but brings it below 1.0, which is a great first step. However, the number is still not low enough, so we continue on.
-
-### 3. Movie and user effect model
-
-We compute the user bias **$b_{u}$** per user. Some users are cranky, and others are optimistic - so the Effect of the user's crankiness can change the ratings in either direction, positive or negative. The formula for the predicted rating would then be, building on what we have already seen in models 1 and 2 above:
-
-$$Y_{u,i} = \mu + b_{i} + b_{u} + \epsilon_{u,i}$$
-
-We compute an approximation by computing $\mu$ and $b_{i}$, and estimating  $b_{u}$, as the average of 
-$$b_{u} = Y_{u,i} - \mu - b_{i} - \epsilon_{u,i}$$
-
-```{r , echo=FALSE, include=FALSE, results='hide'}
-hash <- archivist::searchInLocalRepo("name:rmse_results_output_2")
-archivist::loadFromLocalRepo(hash)
+### 3. Naive Bayes
+```{r nb_default, echo=FALSE, include=FALSE}
 ```
-
+The next attemped model is the Naive Bayes Model. In the initial attempt, I used the same training/testing dataframes as in the classification trees attempts described above. This produced an accuracy of **`r nb_accuracy`**, which is so far the lowest we've seen (and will prove to be the worst). 
 ```{r  echo=FALSE}
-rmse_results_output_2 %>%  knitr::kable()
+model_results %>% knitr::kable()
 ```
 
-### 4. Regularized Models
+```{r nb_matrix, echo=FALSE, include=FALSE}
+```
+However, the algorithm also takes matrices as input, and at the next iteration the model will attempt to evaluate the accuracy on the matrix data (which is simply the dataset with dummay variables.) Here, the accuracy was much higher, at **`r nb_m_accuracy`**. 
+```{r  echo=FALSE}
+model_results %>% knitr::kable()
+```
 
-So far we have been computing estimates with certain levels of uncertainty, but we have not been taking into accounts that problems may exist in the data where there is not enough information. There is always a risk of over-fitting the data, and to reduce this risk, we introduce the concept of **regularization**. Regularization will allow us to use a tuning parameter, $\lambda$, that when included in the calculation will minimize the mean squared error. This will reduce the $b_{i}$ and $b_{u}$ in case of small number of ratings. 
+### 4. Generalized Linear Models (GLM)
 
-Since I am attempting to narrow down a $\lambda$ value quite frequently during this project over various models, I have created a function that will be used to create, calculate, plot, and narrow down the lambda range for each model I attempt to train. 
-
-The function takes in parameters for the start and end of the range of the $\lambda$, an increment to step through the  $\lambda$ values, as well as another function that is passed in to do the calculations that vary between the models. The function then recursively calls itself only **once** to get an even finer-grained value of  $\lambda$, with a smaller, narrower set of lambdas once a rough range has been established in the first run-through. The function returns a minimum lambda for the model in question; This value, in turn, can then be used to calculate the RMSE for the model. The testing set is very large so if we want to evaluate lambdas somewhat efficiently, we first run the data set with broad intervals, and then zoom in on the best performing section - this is the point of the recursive call of the function, named ```find_generic_lambda```. The function will also plot the  $\lambda$ vs. RMSE values for both the wide and narrow iteration of the function, choosing the lowest-available value.
-
-**The function will also plot both sets of attempted $\lambda$'s ** - first, the **wide range** that is set by the first call of the function, and then, the **narrowed range** with much more granular steps. Since this function will be called by every regularized model, we will see the $\lambda$ ranges plotted appropriately.
-
+The next, and most extensive set of models uses **Generalized Linear Regression** - a variation of linear regression that allows for predictions of categorical variables. Since here we are trying to predict the 
 
 #### 4.1 Movie Effect Regularized Model
 
-```{r find_generic_lambda, eval=FALSE}
-```
 
 
-The first model to use this function will be the **Regularized Movie Effect Model** - essentially we are re-using the movie-effect model from above with regularization. The general idea of penalized regression is to control the total variability of the movie effects; Specifically, instead of minimizing the least squares equation, we minimize an equation that adds a penalty:
 
-$$\frac{1}{N} \sum_{u,i} \left(y_{u,i} - \mu - b_i\right)^2 + \lambda \sum_{i} b_i^2$$
-
-The first term of this equation is the least squares estimate we've been working with throughout; the second term is basically a penalty that gets larger when many $b_i$ are large. Using calculus, we can re-work this equation to show that the values of $b_i$ that minimize the equation are:
-$$\hat{b}_i(\lambda) = \frac{1}{\lambda + n_i} \sum_{u=1}^{n_i} \left(Y_{u,i} - \hat{\mu}\right)$$
-
-where  $n_i$ is the number of ratings made for movie i. When the sample size is large, the penalty $\lambda$ is so low that it's basically ignored; however, when the sample size is small, the estimate $\hat{b}_i(\lambda)$ diminishes to 0. 
-
-$\lambda$ is a tuning parameter, and we use cross-validation to choose the correct lambda for each case we decide to plug in regularization into. This, in essence, is what the function **find_generic_lambda** shown above is all about. 
-
-```{r regularized_rmse_3, eval=FALSE}
-```
-
-The $\lambda$ values generated with this function, both the wide and narrowed ranges, can be seen on these plots: \newline
-
-```{r echo=FALSE, include=TRUE, warning=FALSE, error=FALSE, fig.align='left'}
-plot_lambdas(1, TRUE)
-plot_lambdas(1, FALSE)
-```
-
-```{r  , echo=FALSE, include=FALSE, results='hide'}
-hash <- archivist::searchInLocalRepo("name:rmse3_lambda")
-archivist::loadFromLocalRepo(hash)
-hash <- archivist::searchInLocalRepo("name:rmse_results_output_3")
-archivist::loadFromLocalRepo(hash)
-hash <- archivist::searchInLocalRepo("name:rmse_3")
-archivist::loadFromLocalRepo(hash)
-```
-
-The lowest-chosen $\lambda$ value is: **`r rmse3_lambda`** .\newline
-
-
-The function **```regularized_rmse_3```**  was passed as a parameter into the **```find_generic_lambda```** function described above, and will produce the RMSE for the regularized movie effect model. It is of note that the result of this is only slightly better then the non-regularized Movie Effect model (model # 2) and significantly worse then the non-regularized model # 3. Moreover, an RMSE of **`r rmse_3`** is very high, and does not fit the criteria of being **< `r threshold_value`**. Therefor, the search for a fitting RMSE continues.
-
-```{r  echo=FALSE}
-rmse_results_output_3 %>%  knitr::kable()
-```
-
-\pagebreak
-
-#### 4.2 Movie + User Bias Effect Regularized Model
-
-The results from the regularization approach don't seem to be doing any better then the movie Effect model, and significantly worse then the user Effect + movie effect model. We will now try the regularization option with both movie and user bias effect. Therefor, I will next attempt to tune the model more with the both the **Movie Effect** AND the **User Effect** parameter.
-
-This time, the formula we will follow is, with $b_u$ as the user Effect:
-
-$$\frac{1}{N} \sum_{u,i} \left(y_{u,i} - \mu - b_i - b_u \right)^2 + \lambda \left(\sum_{i} b_i^2 + \sum_{u} b_u^2\right)$$ 
-
-```{r regularized_movie_and_user, eval=FALSE}
-```
-
-```{r , echo=FALSE, include=FALSE, results='hide'}
-hash <- archivist::searchInLocalRepo("name:rmse4_lambda")
-archivist::loadFromLocalRepo(hash)
-hash <- archivist::searchInLocalRepo("name:tmp_rmse_results_4")
-archivist::loadFromLocalRepo(hash)
-hash <- archivist::searchInLocalRepo("name:rmse_4")
-archivist::loadFromLocalRepo(hash)
-```
-
-\pagebreak
-
-The  $\lambda$'s from this function can be seen here:\newline
-
-```{r echo=FALSE, include=TRUE, warning=FALSE, error=FALSE, fig.align='left'}
-plot_lambdas(2, TRUE)
-plot_lambdas(2, FALSE)
-```
-The lowest-chosen $\lambda$ value is:  **`r rmse4_lambda`** .\newline
-```{r  echo=FALSE}
-tmp_rmse_results_4 %>%  knitr::kable()
-```
-
-It seems like the regularization model with both user and movie effects works very well with the RMSE, and even performed slightly better then the current winner,  **the user Effect + movie effect model**. But is an even better approach possible? I will next attempt to add the film's release year into the mix and examine whether this will help making the predictions more accurate.
-\pagebreak
-
-#### 4.3 Movie + User + Release Year Effect Regularized Model
-
-But can we do even better? Next, I will attempt to add in the year into the mix, testing whether the age of the movie makes a difference.
-For this we have created the field "age_of_movie"
-
-$$\frac{1}{N} \sum_{u,i} \left(y_{u,i} - \mu - b_i - b_u - b_y \right)^2 + \lambda \left(\sum_{i} b_i^2 + \sum_{u} b_u^2 + \sum_{i} b_y^2 \right)$$
-
-with $b_y$ as the **release year effect**. 
-
-```{r regularized_movie_and_user_and_year, eval=FALSE}
-```
-
-The  $\lambda$'s from this function can be seen here:\newline
-
-```{r echo=FALSE, include=TRUE, warning=FALSE, error=FALSE, fig.align='left'}
-plot_lambdas(3, TRUE)
-plot_lambdas(3, FALSE)
-```
-
-```{r , echo=FALSE, include=FALSE, results='hide'}
-hash <- archivist::searchInLocalRepo("name:model_5_lamdba")
-archivist::loadFromLocalRepo(hash)
-hash <- archivist::searchInLocalRepo("name:rmse_results_output_5")
-archivist::loadFromLocalRepo(hash)
-hash <- archivist::searchInLocalRepo("name:model_5_rmse")
-archivist::loadFromLocalRepo(hash)
-```
-
-The lowest-chosen $\lambda$ value is:  **`r model_5_lamdba`** .\newline
-
-```{r  echo=FALSE}
-rmse_results_output_5 %>%  knitr::kable()
-```
-
-The added year does indeed seem to have made a difference in the calculations; The next item to be tested is the genre. 
-
-#### 4.4 Movie + User + Release Year + Genre Effect Regularized Model
-
-Following the pattern of our previous regularized models, we add in $b_g$ to represent the **genre effect** into the regularization mix, using the following formula:
-
-$$\frac{1}{N} \sum_{u,i} \left(y_{u,i} - \mu - b_i - b_u - b_y -b_g \right)^2 + \lambda \left(\sum_{i} b_i^2 + \sum_{u} b_u^2 + \sum_{i} b_y^2 + \sum_{i} b_g^2 \right)$$
-
-\pagebreak
-
-```{r regularized_movie_and_user_and_year_and_genre, eval=FALSE}
-```
-
-\pagebreak
-
-The  $\lambda$'s from this function can be seen here:\newline
-
-```{r echo=FALSE, include=TRUE, warning=FALSE, error=FALSE, fig.align='left'}
-plot_lambdas(4, TRUE)
-plot_lambdas(4, FALSE)
-```
-
-```{r, echo=FALSE, include=FALSE, results='hide'}
-hash <- archivist::searchInLocalRepo("name:model_6_lambda")
-archivist::loadFromLocalRepo(hash)
-hash <- archivist::searchInLocalRepo("name:rmse_results_output_6")
-archivist::loadFromLocalRepo(hash)
-hash <- archivist::searchInLocalRepo("name:model_6_rmse")
-archivist::loadFromLocalRepo(hash)
-```
-
-The lowest-chosen $\lambda$ value is: **`r model_6_lambda`**.\newline
-
-```{r  echo=FALSE}
-rmse_results_output_6 %>% knitr::kable()
-```
-
-\pagebreak
 # Results
 
 After creating a number of predictive algorithms, the best model as per the project requirements is the one with the least RMSE : **'Regularized Movie, User, Release Year and Genre Effect Model'** (This is model **#7** from the list enclosed below). Now that we've selected this model, it will be applied to the **validation data set** (which has been untouched as of yet) with the $\lambda$ value we calculated with the last function.
