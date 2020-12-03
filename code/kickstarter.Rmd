@@ -52,7 +52,7 @@ This is Marina Ganopolsky's implementation of the **Choose Your Own Project** of
 3. To achieve an accuracy of **> 50%**, and validate this with the **test data set**, as described below.
 3. To summarize the findings, draw conclusions, and provide further recommendations, if needed.
 
-The dataset I have chosen is the [Kickstarter Dataset from Kaggle](https://www.kaggle.com/kemical/kickstarter-projects?select=ks-projects-201801.csv). 
+The dataset I have chosen is the [Kickstarter Dataset from Kaggle](https://www.kaggle.com/kemical/kickstarter-projects?select=ks-projects-201801.csv). This dataset represents Kickstarter projects between the years of **2009 and 2018**, as well as their respective success and failure information. Information about the country of origin of the project, the category, the goal amount, currency, etc is also present. 
 A quick summary of the data wrangling modifications will be provided, as well as some visual representations of patterns present in the data, in the **Method and Analysis** section. This will inform the reader about the various trends present in the dataset.
 
 An exploratory analysis will be performed to generate the predicted succeses levels of the Kickstarter Project, with various models, to be specified; a best-performing algorithm will be chosen, and the results of the calculations will be analyzed and explained; finally a conclusion will be provided.
@@ -97,249 +97,134 @@ A fair amount of data manipulation has been done to the datasets created with th
   + **A training dataset** - the data the algorithms will be trained on, **80%** of the remaining data.
   + **A testing dataset** - the data the algorithms will be tested on, **20%** of the remaining data.
 
-Let's now take a look at the data we have:
-```{r, summary_ds, echo=TRUE, include=TRUE, warning=FALSE}
-```
-
-Glancing over the information most things seem fine at a first review; one thing that jumps out is the minimum value of the launched field, which is 1/1/1970. This is probably an error in the data - let's examine it:
-```{r, launched_ds, echo=TRUE, include=TRUE, warning=FALSE}
-```
-This is definitely an error in the data, for multiple reasons. Let's plot what time period this takes place during:
-
-\pagebreak
-
-Per row, this is a representation of one user's rating of a single movie. As you can tell, the **genres** per film are currently combined into **"|"**-delimited string, which I will later separate.\newline
+Per row, this is a representation of a single Kickstarter campaign. \newline
 **As a first glance, here's a snapshot of dataset:**
 
-```{r, summary_movielens, echo=FALSE}
+```{r, summary_ds, echo=FALSE}
 ```
-\pagebreak
+
 **The first few lines of the dataset look like this:**
 
 ```{r,  echo = FALSE, tidy=TRUE}
-head(movielens) %>%  print.data.frame()
+head(ds) %>%  print.data.frame()
 ```
-
-**A summary of the subset confirms that there are no missing values.**
-```{r  echo=FALSE}
-data_summary <- movielens %>% 
-  summarize(n_users = n_distinct(userId), n_movies = n_distinct(movieId))
-```
-
-The total of unique movies and users in the movielens subset is **`r format(data_summary$n_users, big.mark = ",")`** unique users and **`r  format(data_summary$n_movies, big.mark = ",")`** different movies:
-
-```{r   echo=FALSE, tidy=TRUE, cache=TRUE}
-print(data_summary)
-```
-If every user rated every movie, we would have **`r format(data_summary$n_users * data_summary$n_movies, big.mark = ",")`** rows; however, we only have this many rows:
-
-```{r echo=FALSE}
-noquote(format(nrow(movielens), big.mark = ","))
-```
-Therefor, the database is fairly **sparsely populated**. I will visualize this later in the document.
-\pagebreak
 
 # Methods and Analysis
 
 ## Data Insights, Cleaning & Visualizations
 
-### Sparsity
+### Initial Insights
 
-```{r percent_populated, echo=FALSE} 
-percent_populated <- 
-  (nrow(movielens)/ (data_summary$n_users* data_summary$n_movies)) * 100
-percent_populated <- round(percent_populated, 2)
-noquote(paste(percent_populated, "%"))
+Glancing over the information most things seem fine at a first review; one thing that jumps out is the minimum value of the **launched** field, which is 1/1/1970. This is probably an error in the data - let's examine it:
+
+```{r, launched_ds, echo=TRUE, include=TRUE, warning=FALSE}
 ```
 
-As noted, if every user rated every movie, we would have approximately **`r format(data_summary$n_users * data_summary$n_movies, big.mark = ",")`** entries in the dataset; however, as shown above, we only have **`r  format(nrow(movielens), , big.mark = ",")`** ratings. Apparently, the data set is actually less then **`r round(percent_populated, digits=2)`%** populated, which we can see from the calculation above.
-
-Visually, we can show the sparseness on a small sample of the data, with the following image graph:
-
-```{r  fig.align='left', echo=FALSE, include=FALSE, results='hide'} 
-#load the plot from memory
-hash <- archivist::searchInLocalRepo("name:sample_users")
-loadFromLocalRepo(hash)
+Viewing a list of the furthest ordered launch dates, we see that 1/1/1970 is a strange outlier. We dig further by analyzing the entries with this information:
+```{r, launched_1970, echo=TRUE, include=TRUE, warning=FALSE}
 ```
 
-```{r, sparse_plot, echo=FALSE}
+Based on the names, most of these campaigns have been cancelled. It's worth noting that in the predictive modeling section, our models will exclude projects that do not fall into the "successful" or "failed". Therefor, we will remove these entires from the data.
+
+```{r, delete_1970, echo=FALSE, include=FALSE, warning=FALSE}
 ```
 
-\pagebreak
-### Users
-Summarizing the users in the system, we have users with **a minimum of 20 reviews**; however, the maximum is **> 7000 reviews** per user.
+### Pledge Information
 
-```{r, echo=FALSE, include=FALSE, results='hide'}
-hash <- archivist::searchInLocalRepo("name:users")
-loadFromLocalRepo(hash)
-hash <- archivist::searchInLocalRepo("name:users_summary")
-loadFromLocalRepo(hash)
+What kind of information can be gleaned from failed projects? We examine projects where the pledge ratio is less then 1 (meaning that they did not meet their fundraise goal.)
+```{r, pledge_less_1, echo=TRUE, include=TRUE, warning=FALSE}
 ```
 
-
-Viewing the ratings' density distribution, **it is obvious that most of the ratings come from a small percentage of users**:\newline
-
-```{r user_density_distribution, echo=FALSE, warning=FALSE, results='hide'} 
+It appears that some projects are succesful despite not having met their funding goal!
+```{r, pledge_less_2, echo=TRUE, include=TRUE, warning=FALSE}
 ```
 
-\pagebreak
+The project raised a significant sum though - 85% of what it neeeded; and it went on to be successful. However, it's the only one of its kind.
+This of course, begs the question of what happens 
 
-If we examine the trends in the amount of ratings a user submits, versus the average rating, per user, we can clearly see that users with smaller amounts of ratings are much more likely to give extreme ratings on either side of the scale - be either very cranky (and give a rating of 0.5) or extra optimistic (and give a rating of 5). In the plots below I show the difference in the variability of user's average rating trends vs. the amount of ratings they have submitted.\newline
+Viewing the pledge ratios' cumulative distribution, **it is obvious that most of the successful projects are funded around 100%  or slightly higher - with the ratios hovering around 1. However, there are actually a significant amount of projects that are funded at thousands of times their goal value.**:\newline
 
-```{r users_4_graphs, echo=FALSE, warning=FALSE, include=TRUE, message=FALSE} 
+```{r ECDF, echo=FALSE, warning=FALSE, results='hide'} 
 ```
 
-\pagebreak
-
-### Movies
-
-We can also show that **each movie is not rated with the same frequency**; That is, the popular movies will be seen by many more people and will therefor be rated by many more people. Meanwhile, there are also many independent films that will only be seen by a few people, and therefor will only be rated by a small percentage of those.\newline
-
-```{r movie_histogram, echo=FALSE, warning=FALSE, include=TRUE, message=FALSE} 
+### Data Manipulation
+Since we will be using models that require fields set as factors, the predictive fields of the dataset will be manipulated to be changed into factors. 
+```{r factors3, echo=FALSE, warning=FALSE, results='hide'} 
+```
+The levels of the factors of these fields can be viewed here:
+```{r levels, echo=TRUE, warning=FALSE} 
+```
+It now seems that the country field has some strange values ("N,0\"") in it; we will remove these records.
+```{r filtere_N0, echo=FALSE, warning=FALSE} 
 ```
 
-\pagebreak
-
-The **users** data came with a specifications that **only users with 20 or more reviews are included**; however, no similar filtering was done for movies.  While working on this project, I have found that if the dataset includes movies with 3 reviews or less, the **```createDataPartition {caret}```** function splits up the data in a way that will keep some of the movies in the testing set and some in the training set. The documentation states : 
-
-```Also, for createDataPartition, very small class sizes (<= 3) the classes may not show up in both the training and test data```
-This particular quirk sets up the dataset so that the ```inner_join``` function used in the regularization sections returns NA values for these movies, making the RMSE calculations invalid. Therefor, I have removed the entries for movies that have 3 reviews or less, excluding some 30 ratings.  If we examine the data, we can see that the variability of average film ratings is very high when the number of ratings is low, and it decreases steadily as the rating counts get into the hundreds and then thousands. This trend makes sense if we consider that an obscure film will only be seen by a small audience that may be biased for or against it, making for an an unusual amount of outlier ratings. As the film is seen by more people, it will get rated by more people, and the variability of those ratings will change as well. The plots below shows the variability of ratings when movies with less then 100 ratings are removed; We repeat the same with 200, and 300 cumulative ratings.  The plots below will show what I mean:\newline
-```{r ratings_4_graphs, echo=FALSE, warning=FALSE, message=FALSE}
+### Categories & Funds Pledged
+Each projecet has a **main_category** and a **category** section. Which **main_category** do users attempt to fund most often?
+```{r freq, echo=FALSE, warning=FALSE, include=TRUE, message=FALSE} 
+```
+In terms of the main categoriex, **Film & video** projects seem to be the **most** wide-spreead, while **Dance** is the **least**.
+What does this look like in terms of funds raised?
+```{r raised, echo=FALSE, warning=FALSE, include=TRUE, message=FALSE} 
+```
+And what about sub-categories?
+```{r raised_by_sub_code, echo=FALSE, warning=FALSE, include=TRUE, message=FALSE} 
 ```
 
-The data shows that by removing the films with fewer reviews, we remove most of the extreme outliers of the **0.5** AND **5** average movie ratings. In general, the data also shows that movies with fewer ratings have a much higher variability in average movie ratings.  
+### Project States
 
-**NOTE** : It is of interest to note that out of curiousity I also ran the algorithms described below on the datasets adjust to match the graphs below - removing films with less then (100, 200, and 300) ratings. As expected, the RMSE's were indeed lower the more unfrequently rated films were removed from the database, and somewhat significantly lower then the RMSE's produced on the full data. However, as we are not allowed to modify the dataset, this was purely a theoretical exercise. 
-
-\pagebreak
-
-### Ratings
-
-```{r ratings_distributions, warning=FALSE, message=FALSE, echo=FALSE}
+```{r proj_by_state, warning=FALSE, message=FALSE, echo=FALSE, include=TRUE}
 ```
 
-From the data and the bar graph of the ratings, we can make one these conclusions: 
+From the data and the bar graph of the project states, we can make these conclusions: 
+"
+1. The vast majority of the projects fall into the **"failed"** or **"successful"** category. 
+2. There are 6 discrete optionss.
+3. Most projects **FAIL**.
 
-1. In terms of ratings, the values are on a **scale of 0.5-5**, in increments of 0.5. 
-2. There are 10 discrete options, and the ratings are **not** continuous.
-3. Full-grade ratings are much more common then the half-grade ratings.
-4. **4** is the most common rating.
+The information in the dataset includes some facts, but is hardly a full picture of what happens in a project. We don't know about the marketing efforts, time/funds spent on those, or anything else. Therefor, it's hardly a detailed model we're building, but it's a start. As mentioned earlier, we will be focusing exclusively on the projecets that fall into the **"failed"** or **"successful"** categories.
 
-\pagebreak
+### Pledged vs Goal 
+Let's examine the distribution of pledged value and goal value in successful vs failed projects; As is evidenced by the densty plots on the left side, little info can be gleaned here. However, once the visualization is **log-transformed**, the distributions of the successful projects seem to be nearing normal. The pledged values are normally distributed for succesful projects, but not so much for the failed ones; this makes intuituve sense since many failed projects had raised no money at all.
+```{r medians_log_distribution, warning=FALSE, message=FALSE, echo=FALSE, include=TRUE}
+```
+Digging into this further, a box plot of pledge ratios paints a very clear picture of failed vs. successful projects - and this makes sense intuitively, as well. We've already seen that nost successful projets are funded at over 100$ of goal.
 
-Plotting release year vs. avg movie ratings - it seems that either:\newline
-
-1. Movies are getting worse with time, or 
-2. Reviewers are getting pickier with time.
-3. More reviews are being submitted with time. 
-
-```{r  echo=FALSE,  warning=FALSE, message=FALSE}
-movielens %>%
-  ggplot(aes(release_year, avg_rating)) + 
-  stat_bin_hex(bins = 100) + 
-  scale_fill_distiller(palette = "PuBuGn") +
-  stat_smooth(method = "lm", color = "magenta", size = 1) +
-  ylab("Average Movie Rating") + xlab("Release Year") + 
-  ggtitle("Release Year vs Average Movie Ratings")
+```{r failed_quantiled, warning=FALSE, message=FALSE, echo=TRUE, include=TRUE}
 ```
 
-It is indeed obvious that more reviews are being submitted with time. **But is this because more movies are being made with time?**\newline Based on the histogram below, the answer to this is a most definite **yes** - the numbers increase steadily and peak in the mid-1990's, and start to fall off again. Does this mean that less movies are being made after 2008? That is doubtful. The dataset stopped adding movies in 2008, and were probably excluding many movies. 
-
-```{r movie_releases_over_the_yeears, echo=FALSE}
+And if we examine the pledge ratios quantiles, this is also obvious. 
+Faled:
+```{r suc_quantiled, warning=FALSE, message=FALSE, echo=TRUE, include=TRUE}
 ```
 
-In fact, if we examine the top 10 release years by volume, the movies from the 1990's and 2000 are clear winners in terms of volume in this dataset.\newline\newline
+### Feature Correlation & Pairs
 
-```{r  echo=FALSE, warning=FALSE, include=TRUE, message=FALSE}
-movielens %>% group_by(release_year) %>% summarise(count=n()) %>% 
-  arrange(desc(count)) %>% head(10) %>% knitr::kable(row.names=TRUE)
+Correlation of some of the features and overview of their relationship is shown here. The only items correlated very slightly are the time interval and the goal amount in USD. This makes sense intuitively as the planners expect to raise some amount of money in a specific time.
+
+```{r ggpairs, warning=FALSE, message=FALSE, echo=FALSE, include=TRUE}
+```
+It looks like the only real correlation - .0022 is shown between pledged amounts and the amount of backers. 
+This makes sense of course, since the amount of backers will be a small indicator of the amount of funds raised.  
+
+```{r final_ds_selection, warning=FALSE, message=FALSE, echo=FALSE, include=TRUE}
 ```
 
-\pagebreak
+## Functions of Note
 
-### Genres
+This project used several different functions to help with the creation of dynamic model formulas, as well as some wrappers to quickly and neatly get accuracy and confusion matrix data. I'm including these here.
 
-If the current ```genres``` field is separated by the "|"-character, we can examine the individual genres a movie might fall into:
-
-```{r  echo=FALSE, include=FALSE, results='hide', message=FALSE}
-hash <- archivist::searchInLocalRepo("name:movies_by_genre")
-archivist::loadFromLocalRepo(hash)
+```{r GLM_functions, warning=FALSE, message=FALSE, echo=TRUE, include=TRUE}
 ```
-
-```{r print_genres_text, echo=FALSE}
-```
-Below one can examine how genres generally tend to be reviewed, by volume:
-```{r print_movie_count_by_genre, echo=FALSE, fig.align='left'}
-```
-
-**Do people tend to review certain genres more then others?**
-
-The answer seems to be a resounding **YES**!\newline
-
-**Dramas** seems to have the most reviews, while **IMAX** has by far the least; this pattern makes sense, since only a small percentage of movies get released in IMAX (although the ones that are are super popular, and will thus get more reviews.)
-
-\pagebreak
-
-Next, we'll explore how ratings have fared over time by **genre**. Based on the visualizations provided here, it is fairly obvious that **most of the average ratings across genres have declined over the years**. The notable exception to this is **IMAX** movies, and in a small way, **Animation**. These trends make sense, as both IMAX and animated films have benefited greatly from technological advancements over the years.\newline\newline
-
-```{r genres_ratings_facet, echo=FALSE, warning=FALSE, message=FALSE}  
-```
-
-\pagebreak
-
-```{r print_genres_totals, echo=FALSE, include=FALSE}
-hash <- archivist::searchInLocalRepo("name:total_reviews_by_genre")
-archivist::loadFromLocalRepo(hash)
-```
-
-**Ratings By Genre**
-
-In general, the average rating by genre can be shown on this plot; **Film Noir** seems to have the highest average rating, while **Horror** films have the lowest.
-```{r avg_rating_by_genre_plots, echo=FALSE, fig.align='left'}
-```
-\pagebreak
-
-**Genre Combinations**\newline\newline
-So far I have analyzed the genre information as if it was separated by individual genres. However, each film is actually listed as a combination of several genres, and shown in the ```genres``` field. Below, I show the minimum and maximum count of genres any movie exibits.
-
-```{r echo=FALSE, include=FALSE}
-hash <- archivist::searchInLocalRepo("name:genre_list")
-archivist::loadFromLocalRepo(hash)
-```
-
-```{r echo=FALSE, include=TRUE}
-genre_list %>% summarise(max_genres = max(genre_count), min_genres = min(genre_count)) %>%
-  knitr::kable()
-```
-
-As every film can fall into multiple genres, there are this many **unique genre combinations per film** available in the dataset:
-
-```{r echo=FALSE, include=TRUE}
-length(unique(genre_list$genre_list))
-```
-
-
-\pagebreak
 
 ## Rating Models
-
-### 1. Average movie rating model
-
-```{r dayta_loading, echo=FALSE, include=FALSE, results='hide'}
-hash <- archivist::searchInLocalRepo("name:validation")
-archivist::loadFromLocalRepo(hash)
+```{r data_split, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
 ```
+Since we are trying to predict the variable **state** and it is **categorical**, as well as are many of the predictors, **linear regression was not a good option for for this project**. Therefor, we attempt the models below.
 
-Earlier in the document I described the logic behind the RMSE function. Here I am enclosing it's implementation in R.
+### 1. Classification Trees
 
-```{r rmse_formula}
-```
-
-```{r test_train_data_reload, echo=FALSE, include=FALSE, results='hide'}
-hash <- archivist::searchInLocalRepo("name:train_set")
-archivist::loadFromLocalRepo(hash)
-hash <- archivist::searchInLocalRepo("name:test_set")
-archivist::loadFromLocalRepo(hash)
+The first model I will attempt will be **classification trees**.
+```{r ct_model, echo=FALSE, include=FALSE, results='show'}
 ```
 
 ```{r lambda_plot_names, echo=FALSE, include=FALSE, results='hide'}
