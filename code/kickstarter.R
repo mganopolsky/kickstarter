@@ -53,11 +53,9 @@ data  <-read_csv(file_path)
 
 ## ---- glimpse_data --------
 glimpse(data)
-#There aree 378,661 rows
 
-
-#according to the documentatino, `usd pledged` isn't needed since there is the usd_pledged_real, so I'll remove it
 ## ---- massage_data --------
+#according to the documentatino, `usd pledged` isn't needed since there is the usd_pledged_real, so I'll remove it
 ds <- data %>% dplyr::select(-`usd pledged`)
 
 #Add a campaign length in days (time_int), pledged ratio (how much has been pledged vs what the goal is), 
@@ -88,16 +86,16 @@ summary(ds)
 ds %>% distinct(launched) %>% arrange(launched) %>% head()
 
 ## ---- launched_1970 --------
-ds %>% filter(launched=='1970-01-01') %>% dplyr::select(launched, name, category, deadline, backers, goal)
+ds %>% filter(launched=='1970-01-01') %>% 
+  dplyr::select(launched, name, category, deadline, backers, goal)
 
-#let's remove the dates on 1/1/1970
 ## ---- delete_1970 --------
+#let's remove the dates on 1/1/1970
 ds <- ds %>% filter(launched >= "2009-04-21")
 
 #let's look at items with a pledge ration of less then 1
 ## ---- pledge_less_1 --------
 failed <- ds %>% filter(pledged_ratio < 1) 
-
 failed %>% distinct(state)
 #it appeaers that some are succeessful despite having not met their goal!
 ## ---- pledge_less_2 --------
@@ -141,14 +139,13 @@ levels(ds$launched_month)
 levels(ds$launched_day_of_week)
 levels(ds$launched_year)
 
+## ---- filtere_N0 --------
 #Country "N,0\"" seems strange - we'll keep an eye out for that later.
 #Let's remove those
-
-## ---- filtere_N0 --------
 ds <- ds %>% filter(country != "N,0\"")
 glimpse(ds)
 
-#we're down to 374,864 rows
+
 
 #Which main_category projects are most frequently proposed?
 
@@ -338,10 +335,9 @@ get_accuracy <- function(cf_matrix)
   return(cf_accuracy)
 }
 
+## ---- data_split --------
 #since the outcome is a factor and not just numeric, we can't use simple linear regression to calculate this. we need to use GLM
 #predictions based solely on category
-
-## ---- data_split --------
 set.seed(1, sample.kind="Rounding")
 test_lm_index <- createDataPartition(y = ds$state, times = 1, p = 0.2) %>% unlist()
 lm_ds <- ds[-test_lm_index,]
@@ -385,8 +381,6 @@ pruned.tree <- prune(ct_prune_model, cp = cp)
 ct_pred_pruned <- predict(pruned.tree, test_ds, type = "class")
 ct_pruned_table <- table(test_ds$state, ct_pred_pruned)
 ct_pruned_accuracy <- get_accuracy(ct_pruned_table)
-#accuracy_results[paste('Pruned Classification Trees with pruned cp=', cp, sep="")] <-  ct_pruned_accuracy2
-
 cf_p_model_output <- tibble(model = paste('cp=0 Classification Trees post-pruned with min cp=', cp, sep=""), accuracy = ct_pruned_accuracy) 
 model_results <- bind_rows(model_results, cf_p_model_output)
 
@@ -398,15 +392,17 @@ ct_pred_2 <- predict(ct_model_2, test_ds, type = "class")
 # Plot the ct_model with customized settings
 ct_table2 <- table(test_ds$state, ct_pred_2)
 ct_accuracy2 <- get_accuracy(ct_table2)
+cf_p2_model_output <- tibble(model = "Classification Trees, default params, un-pruned", accuracy = ct_accuracy2) 
+model_results <- bind_rows(model_results, cf_p2_model_output)
+
 cp <- cp.select(ct_model_2)
 pruned2.tree <- prune(ct_model_2, cp = cp)
 ct_pred_pruned2 <- predict(pruned2.tree, test_ds, type = "class")
 ct_pruned_table2 <- table(test_ds$state, ct_pred_pruned2)
 ct_pruned_accuracy2 <- get_accuracy(ct_pruned_table2)
-#accuracy_results[paste('Post-Pruned Classification Trees, no default parameters, with pruned cp=', cp, sep="")] <-  ct_pruned_accuracy2
 
-cf_p2_model_output <- tibble(model = paste('Classification Trees, default params, post-pruned cp=', cp, sep=""), accuracy = ct_pruned_accuracy2) 
-model_results <- bind_rows(model_results, cf_p2_model_output)
+cf_p2_model_pruned_output <- tibble(model = paste('Classification Trees, default params, post-pruned cp=', cp, sep=""), accuracy = ct_pruned_accuracy2) 
+model_results <- bind_rows(model_results, cf_p2_model_pruned_output)
 
 
 
@@ -429,7 +425,7 @@ matrix_testset$state = as.factor(matrix_testset$state)
 #matrix_testset <- ds_matrix_data[-idx , ]
 
 #we can now use the random forest with the various dummy variables
-rf.fit <- randomForest::randomForest(formula=state ~ . , data=matrix_trainset[sample(dim(matrix_trainset)[1] , 70000) , ] , ntree = 200)
+rf.fit <- randomForest::randomForest(formula=state ~ . , data=matrix_trainset[sample(dim(matrix_trainset)[1] , 150000) , ] , ntree = 200)
 
 
 rf_preds <- predict(rf.fit , matrix_testset)
@@ -495,6 +491,8 @@ model_results <- bind_rows(model_results, cf1_model_output)
 
 #################
 #category AND time interval in days
+
+## ---- glm_2 --------
 col_subset <- columns[columns %in% c("category", "time_int")]
 
 glm_2 <- results_GLM(lm_ds, "state", col_subset)
@@ -507,6 +505,7 @@ model_results <- bind_rows(model_results, cf2_model_output)
 
 #################
 #category AND time AND country interval in days
+## ---- glm_3 --------
 col_subset <- columns[columns %in% c("category", "time_int", "country")]
 
 glm_3 <- results_GLM(lm_ds, "state", col_subset)
@@ -518,6 +517,7 @@ model_results <- bind_rows(model_results, cf3_model_output)
 
 
 ##############
+## ---- glm_4 --------
 col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real")]
 
 glm_4 <- results_GLM(lm_ds, "state", col_subset)
@@ -528,6 +528,7 @@ cf4_model_output <- tibble(model = "GLM 4 predictors", accuracy = cf4_accuracy)
 model_results <- bind_rows(model_results, cf4_model_output)
 
 ##############
+## ---- glm_5 --------
 col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "launched_month")]
 
 glm_5 <- results_GLM(lm_ds, "state", col_subset)
@@ -538,6 +539,7 @@ cf5_model_output <- tibble(model = "GLM 5 predictors", accuracy = cf5_accuracy)
 model_results <- bind_rows(model_results, cf5_model_output)
 
 ##############
+## ---- glm_6 --------
 col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "launched_month", "launched_day_of_week")]
 
 glm_6 <- results_GLM(lm_ds, "state", col_subset)
@@ -547,6 +549,7 @@ cf6_accuracy <- get_accuracy(cf6$table)
 cf6_model_output <- tibble(model = "GLM 6 predictors", accuracy = cf6_accuracy) 
 model_results <- bind_rows(model_results, cf6_model_output)
 
+## ---- glm_7 --------
 col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "launched_month", "launched_day_of_week", "currency")]
 
 glm_7 <- results_GLM(lm_ds, "state", col_subset)
@@ -556,7 +559,7 @@ cf7_accuracy <- get_accuracy(cf7$table)
 cf7_model_output <- tibble(model = "GLM 7 predictors", accuracy = cf7_accuracy) 
 model_results <- bind_rows(model_results, cf7_model_output)
 
-
+## ---- glm_8 --------
 col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "launched_month", "launched_day_of_week", "currency", "launched_year")]
 glm_8 <- results_GLM(lm_ds, "state", col_subset)
 cf8 <- get_confusion_matrix(model_fit= glm_8, test_data = test_ds)
@@ -566,10 +569,12 @@ cf8_model_output <- tibble(model = "GLM 8 predictors", accuracy = cf8_accuracy)
 model_results <- bind_rows(model_results, cf8_model_output)
 
 #sorted model results by accuracy 
+
+## ---- final_results --------
 model_results <- model_results %>% arrange(desc(accuracy))
 top_model <- model_results[which.max(model_results$accuracy),]
-model_results
-top_model
+
+
 
 
 

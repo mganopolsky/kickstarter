@@ -52,15 +52,16 @@ This is Marina Ganopolsky's implementation of the **Choose Your Own Project** of
 3. To achieve an accuracy of **> 50%**, and validate this with the **test data set**, as described below.
 3. To summarize the findings, draw conclusions, and provide further recommendations, if needed.
 
-The dataset I have chosen is the [Kickstarter Dataset from Kaggle](https://www.kaggle.com/kemical/kickstarter-projects?select=ks-projects-201801.csv). This dataset represents Kickstarter projects between the years of **2009 and 2018**, as well as their respective success and failure information. Information about the country of origin of the project, the category, the goal amount, currency, etc is also present. 
+The dataset I have chosen is the **[Kickstarter Dataset from Kaggle]**(https://www.kaggle.com/kemical/kickstarter-projects?select=ks-projects-201801.csv). This dataset represents Kickstarter projects between the years of **2009 and 2018**, as well as their respective success and failure information. Information about the country of origin of the project, the category, the goal amount, currency, etc is also present. 
 A quick summary of the data wrangling modifications will be provided, as well as some visual representations of patterns present in the data, in the **Method and Analysis** section. This will inform the reader about the various trends present in the dataset.
 
-An exploratory analysis will be performed to generate the predicted succeses levels of the Kickstarter Project, with various models, to be specified; a best-performing algorithm will be chosen, and the results of the calculations will be analyzed and explained; finally a conclusion will be provided.
+An exploratory analysis will be performed to generate the predicted succeses levels of the Kickstarter dataset, with various models, to be specified; a best-performing algorithm will be chosen, and the results of the calculations will be analyzed and explained; finally a conclusion will be provided.
 
+Several models will be developed, ranging from the most naive to the most complex. These will be tested and compared using their **accuracy** value in order to assess their quality. In contrast to the **MovieLens** project there is no ideal evaluation criteria for this project. However, since we have several models available, and we will pick the model with
+1. Over 50% accuracy (since that is better then simply random)
+2. The highest accuracy as the chosen model to produce the accuracy of the model.
 
-Several models will be developed, ranging from the most naive to the most complex. These will be tested and compared using the resulting RMSE in order to assess their quality. In contrast to the MovieLens project there is no ideal evaluation criteria for this project. However, since we have several models available, and we will pick the model with the highest accuracy as the chosen model to produce the accuracy of the model.
-
-The data is broken into a **training dataset** (80%), and a **testing dataset**(20%). After evaluating every available algorithm I have come up with, the best-resulting model will be used on the **test dataset** to evaluate the quality of the predictions of the movie ratings. 
+The data is broken into a **training dataset** (80%), and a **testing dataset**(20%). After evaluating every available algorithm I have come up with, the best-resulting model will be used on the **test dataset** to evaluate the quality of the predictions of the kickstarter project success. 
 
 This project can be found on **GitHub** [here](https://github.com/mganopolsky/kickstarter) .   
 
@@ -124,7 +125,7 @@ Viewing a list of the furthest ordered launch dates, we see that 1/1/1970 is a s
 ```{r, launched_1970, echo=TRUE, include=TRUE, warning=FALSE}
 ```
 
-Based on the names, most of these campaigns have been cancelled. It's worth noting that in the predictive modeling section, our models will exclude projects that do not fall into the "successful" or "failed". Therefor, we will remove these entires from the data.
+Based on the names, most of these campaigns have been **cancelled**. It's worth noting that in the predictive modeling section, our models will exclude projects that do not fall into the **"successful"** or **"failed"** cateegories. Therefor, we will remove these entries from the data.
 
 ```{r, delete_1970, echo=FALSE, include=FALSE, warning=FALSE}
 ```
@@ -132,15 +133,15 @@ Based on the names, most of these campaigns have been cancelled. It's worth noti
 ### Pledge Information
 
 What kind of information can be gleaned from failed projects? We examine projects where the pledge ratio is less then 1 (meaning that they did not meet their fundraise goal.)
-```{r, pledge_less_1, echo=TRUE, include=TRUE, warning=FALSE}
+```{r, pledge_less_1, echo=FALSE, warning=FALSE, message=FALSE}
 ```
 
 It appears that some projects are succesful despite not having met their funding goal!
-```{r, pledge_less_2, echo=TRUE, include=TRUE, warning=FALSE}
+```{r, pledge_less_2, echo=FALSE, warning=FALSE, message=FALSE}
 ```
 
 The project raised a significant sum though - 85% of what it neeeded; and it went on to be successful. However, it's the only one of its kind.
-This of course, begs the question of what happens 
+This of course, begs the question of what happens kind of funding rates we see for both failed and successful projects. We will examine this later in this document.
 
 Viewing the pledge ratios' cumulative distribution, **it is obvious that most of the successful projects are funded around 100%  or slightly higher - with the ratios hovering around 1. However, there are actually a significant amount of projects that are funded at thousands of times their goal value.**:\newline
 
@@ -154,20 +155,24 @@ Since we will be using models that require fields set as factors, the predictive
 The levels of the factors of these fields can be viewed here:
 ```{r levels, echo=TRUE, warning=FALSE} 
 ```
-It now seems that the country field has some strange values ("N,0\"") in it; we will remove these records.
-```{r filtere_N0, echo=FALSE, warning=FALSE} 
+It now seems that the **country** field has some strange values **("N,0\"")** in it; we will remove these records.
+```{r filtere_N0, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE} 
 ```
 
 ### Categories & Funds Pledged
 Each projecet has a **main_category** and a **category** section. Which **main_category** do users attempt to fund most often?
-```{r freq, echo=FALSE, warning=FALSE, include=TRUE, message=FALSE} 
+\newline
+
+```{r freq, echo=FALSE, warning=FALSE, include=TRUE, message=FALSE, fig.align='left'} 
 ```
 In terms of the main categoriex, **Film & video** projects seem to be the **most** wide-spreead, while **Dance** is the **least**.
 What does this look like in terms of funds raised?
-```{r raised, echo=FALSE, warning=FALSE, include=TRUE, message=FALSE} 
+\newline
+```{r raised, echo=FALSE, warning=FALSE, include=TRUE, message=FALSE, fig.align='left'} 
 ```
 And what about sub-categories?
-```{r raised_by_sub_code, echo=FALSE, warning=FALSE, include=TRUE, message=FALSE} 
+\newline
+```{r raised_by_sub_code, echo=FALSE, warning=FALSE, include=TRUE, message=FALSE, fig.align='left'} 
 ```
 
 ### Project States
@@ -175,38 +180,37 @@ And what about sub-categories?
 ```{r proj_by_state, warning=FALSE, message=FALSE, echo=FALSE, include=TRUE}
 ```
 
-From the data and the bar graph of the project states, we can make these conclusions: 
-"
-1. The vast majority of the projects fall into the **"failed"** or **"successful"** category. 
-2. There are 6 discrete optionss.
-3. Most projects **FAIL**.
+From the data and the bar graph of the project states, we can make these conclusions: \newline
+* The vast majority of the projects fall into the **"failed"** or **"successful"** category. 
+* There are 6 discrete optionss.
+* Most projects **FAIL**.
 
-The information in the dataset includes some facts, but is hardly a full picture of what happens in a project. We don't know about the marketing efforts, time/funds spent on those, or anything else. Therefor, it's hardly a detailed model we're building, but it's a start. As mentioned earlier, we will be focusing exclusively on the projecets that fall into the **"failed"** or **"successful"** categories.
+The information in the dataset includes some obvious descriptors of what happens in a project, but is hardly a full picture of what happens during a fundraising campaign. We don't know about the marketing efforts, time/funds spent on those, or anything else. Therefor, it's hardly a detailed model we're building, but it's a start. As mentioned earlier, we will be focusing exclusively on the projects that fall into the **"failed"** or **"successful"** categories.
 
 ### Pledged vs Goal 
-Let's examine the distribution of pledged value and goal value in successful vs failed projects; As is evidenced by the densty plots on the left side, little info can be gleaned here. However, once the visualization is **log-transformed**, the distributions of the successful projects seem to be nearing normal. The pledged values are normally distributed for succesful projects, but not so much for the failed ones; this makes intuituve sense since many failed projects had raised no money at all.
+Let's examine the distribution of **pledged value** and **goal value** in **successful** vs **failed projects**; As is evidenced by the density plots on the left side, little info can be gleaned here. However, once the visualization is **log-transformed**, the distributions of the successful projects seem to be nearing normal. The pledged values are normally distributed for succesful projects, but not so much for the failed ones; this makes intuituve sense since many failed projects had raised no money at all.
+\newline
 ```{r medians_log_distribution, warning=FALSE, message=FALSE, echo=FALSE, include=TRUE}
 ```
-Digging into this further, a box plot of pledge ratios paints a very clear picture of failed vs. successful projects - and this makes sense intuitively, as well. We've already seen that nost successful projets are funded at over 100$ of goal.
+Digging into this further, a box plot of pledge ratios paints a very clear picture of failed vs. successful projects - and this makes sense intuitively, as well. We've already seen that nost successful projets are funded at over 100$ of goal.\newline
 
-```{r failed_quantiled, warning=FALSE, message=FALSE, echo=TRUE, include=TRUE}
+```{r failed_quantiled, warning=FALSE, message=FALSE, echo=FALSE}
 ```
 
 And if we examine the pledge ratios quantiles, this is also obvious. 
-Faled:
-```{r suc_quantiled, warning=FALSE, message=FALSE, echo=TRUE, include=TRUE}
+Faled:\newline
+```{r suc_quantiled, warning=FALSE, message=FALSE, echo=FALSE}
 ```
 
 ### Feature Correlation & Pairs
 
-Correlation of some of the features and overview of their relationship is shown here. The only items correlated very slightly are the time interval and the goal amount in USD. This makes sense intuitively as the planners expect to raise some amount of money in a specific time.
-
+Correlation of some of the features and overview of their relationship is shown here. 
 ```{r ggpairs, warning=FALSE, message=FALSE, echo=FALSE, include=TRUE}
 ```
-It looks like the only real correlation - .0022 is shown between pledged amounts and the amount of backers. 
-This makes sense of course, since the amount of backers will be a small indicator of the amount of funds raised.  
+The only items correlated very slightly (.0022) are the **time interval** and the **goal amount in USD**. This makes sense intuitively as the planners expect to raise some amount of money in a specific time.
+\newline
 
-```{r final_ds_selection, warning=FALSE, message=FALSE, echo=FALSE, include=TRUE}
+```{r final_ds_selection, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
 ```
 
 ## Functions of Note
@@ -216,20 +220,40 @@ This project used several different functions to help with the creation of dynam
 ```{r GLM_functions, warning=FALSE, message=FALSE, echo=TRUE, include=TRUE}
 ```
 
-## Rating Models
+## Evaluation Models
 ```{r data_split, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
 ```
-Since we are trying to predict the variable **state** and it is **categorical**, as well as are many of the predictors, **linear regression was not a good option for for this project**. Therefor, we attempt the models below.
+For our model calculations and analysis, we will adjust the dataset to remove the variables that are entered at the completion of the project, since using these will skew our calculations. We will only use the variables that a project is created with, as well as some of the features we've engineered from those values. \newline 
+We will exclude:
+* The final amoung of backers for the project.
+* The final amount of money raised for the project. 
+The predictors will we use will be chosen from the following fields:
+* The **Category** the project falls into
+* The **Currency** the project is raising money in.
+* The **Goal** raise amount  in $USD
+* The **Country** the project is based out of
+* The **Time Interval in Days** the project will last on Kickstarter
+* The **Day of the Week** the project was launched
+* The **Month of the Year** the project was launched
+* The **Year** the project was launched
+
+**The AI models will try to predict the 'state' of each kickstarter project in the test dataset.**  \newline
+
+Since we are trying to predict the variable **state** and it is **categorical**, as well as are many of the predictors, **linear regression is not a good option for for this project**, since linear regression only works for numerican variables. Therefor, we attempt the models below. 
+
+\pagebreak
 
 ### 1. Classification Trees
 
-The first model I will attempt will be **classification trees**. The initial attempt used the following parameters:
+The first model I will attempt will be **classification trees (CT)**. The initial attempt used the following parameters:\newline
+
 1. maxdepth = 5 ( the maximum depth of any node of the final tree)
 2. minsplit = 200 ( the minimum number of observations that must be observed before splitting the tree)
+
 ```{r ct_model, echo=FALSE, include=TRUE, results='show'}
 ```
 
-The next attempt once again runs the model, but this time with all default parameters, save **cp**, the complexity parameter, which we set to 0. The logic behind this is that we make a detailed tree and prune it AFTER the model has run its course. **The plot of the cp values** is shown below, showing the optimal (lowest) value for the relative error. 
+The next attempt once again runs the same model, but this time with **all default parameters**, save **cp** (the complexity parameter), which we set to **0**. The logic behind this is that we make a detailed tree and prune it AFTER the model has run its course. **The plot of the cp values** is shown below, showing the optimal (lowest) value for the relative error. 
 
 ```{r ct_pruned_model, echo=FALSE, include=TRUE, results='show'}
 ```
@@ -251,9 +275,9 @@ model_results %>% knitr::kable()
 
 ###  2. Random Forest
 
-```{r ct_model_2, echo=FALSE, include=FALSE}
+```{r randomForest, echo=FALSE, include=FALSE}
 ```
-When first attempting to run the **random forest** algorithm on the data, it became obvious that the general implementation wouldn't be plausable here due to some of the factors (the categories in particular) having more then 32 levels. (This is a limitation of the random forest algorithm implementation in R.) Therefor, the data had to be converted into a matrix with dummy variables. A sample of 70,000 was taken to evaluate the training set; the processing time for this was very long - and in the future implementation of the model I will attempt to run random forest on a larger subset of data. The final random forest model accuracy with **200 trees and a 70,000 samples** was **`r rf_accuracy`**. \newline
+When first attempting to run the **random forest** algorithm on the data, it became obvious that the general implementation wouldn't be plausable here due to some of the factors (the **categories** in particular) having more then 32 levels. (This is a limitation of the random forest algorithm implementation in R.) Therefor, the data had to be converted into a matrix with dummy variables. A sample of 70,000 was taken to evaluate the training set; the processing time for this was very long - and in the future implementation of the model I will attempt to run random forest on a larger subset of data. The final random forest model accuracy with **200 trees and a 70,000 samples** was **`r rf_accuracy`**. \newline
 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
@@ -275,71 +299,90 @@ model_results %>% knitr::kable()
 
 ### 4. Generalized Linear Models (GLM)
 
-The next, and most extensive set of models uses **Generalized Linear Regression** - a variation of linear regression that allows for predictions of categorical variables. Since here we are trying to predict the 
+The next, and most extensive set of models uses **Generalized Linear Regression** - a variation of linear regression that allows for predictions of categorical variables. Since here we are trying to predict the variable **state**, which is categorical, GLM are a good option to experiment with. I attempt to run the models on several of the build-in and engineered predictors, as shown above. The best-performing model in the GLM category is the one that uses the most factors.
 
-#### 4.1 Movie Effect Regularized Model
+#### 4.1 1 Predictor - Category
+First, we use the sole variable **"category"** as a predictor. 
+```{r glm_1, echo=FALSE, include=FALSE}
+```
+```{r  echo=FALSE}
+model_results %>% knitr::kable()
+```
 
+#### 4.2 2 Predictors - Category and Time In Days
+Next, we use the variables **"category"** and **time_int** (the time in days from launch to goal date) as a predictor. This gives us slightly better results, and is marked as **"GLM 2"**. 
+```{r glm_2, echo=FALSE, include=FALSE}
+```
+```{r  echo=FALSE}
+model_results %>% knitr::kable()
+```
 
+#### 4.3 3 Predictors - Category, Time In Days, and Country
+Next, we use the variables **"category"** and **time_int**, and **country**. This gives us slightly better results, and is marked as **"GLM 3"**. 
+```{r glm_3, echo=FALSE, include=FALSE}
+```
+```{r  echo=FALSE}
+model_results %>% knitr::kable()
+```
+
+#### 4.4 4 Predictors - Category, Time In Days, Country and Goal Amount in $USD
+Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**. This gives us slightly better results, and is marked as **"GLM 4"**. 
+```{r glm_4, echo=FALSE, include=FALSE}
+```
+```{r  echo=FALSE}
+model_results %>% knitr::kable()
+```
+
+#### 4.5 5 Predictors - Category, Time In Days, Country, Goal Amount in $USD, and Launched Month
+Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, and **"launched_month"**. This gives us slightly better results, and is marked as **"GLM 5"**. 
+```{r glm_5, echo=FALSE, include=FALSE}
+```
+```{r  echo=FALSE}
+model_results %>% knitr::kable()
+```
+#### 4.6 6 Predictors - Category, Time In Days, Country,  Goal Amount in $USD, Launched Month, and Launched Day of the Week
+Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, and **"launched_month"**. This gives us slightly better results, and is marked as **"GLM 6"**. 
+```{r glm_6, echo=FALSE, include=FALSE}
+```
+```{r  echo=FALSE}
+model_results %>% knitr::kable()
+```
+
+#### 4.7 7 Predictors - Category, Time In Days, Country,  Goal Amount in $USD, Launched Month, Launched Day of the Week, and Currency
+Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, **"launched_month"**, and **"currency"**. This gives us slightly better results, and is marked as **"GLM 7"**. 
+```{r glm_7, echo=FALSE, include=FALSE}
+```
+```{r  echo=FALSE}
+model_results %>% knitr::kable()
+```
+
+#### 4.8 8 Predictors - Category, Time In Days, Country, Goal Amount in $USD, Launched Month, Launched Day of the Week, Currency, and Year Luanched.
+Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, **"launched_month"**, **"currency"**, and **"launched_year"**. This gives us slightly better results, and is marked as **"GLM 8"**. 
+```{r glm_8, echo=FALSE, include=FALSE}
+```
+```{r  echo=FALSE}
+model_results %>% knitr::kable()
+```
 
 
 # Results
-
-After creating a number of predictive algorithms, the best model as per the project requirements is the one with the least RMSE : **'Regularized Movie, User, Release Year and Genre Effect Model'** (This is model **#7** from the list enclosed below). Now that we've selected this model, it will be applied to the **validation data set** (which has been untouched as of yet) with the $\lambda$ value we calculated with the last function.
-
-```{r , echo=FALSE, include=FALSE, results='hide'}
-hash <- archivist::searchInLocalRepo("name:final_rmse")
-archivist::loadFromLocalRepo(hash)
+```{r final_results, echo=FALSE, include=FALSE}
 ```
+After creating a number of predictive algorithms, the best model as per the project requirements is the one with the highest accuracy so far - this happens to be the  **`r top_model$model`** model, with the accuracy of **`r top_model$accuracy`**.
 
-## The final RMSE value calculated from the validation set is: **`r final_rmse`**.
-
-`r final_rmse` is well below the required threshold of **`r threshold_value`**.\newline\newline
-**We can now review the complete set of RMSE calculations :**
-
-```{r , echo=FALSE, include=FALSE, results='hide'}
-hash <- archivist::searchInLocalRepo("name:rmse_results")
-archivist::loadFromLocalRepo(hash)
+```{r  echo=FALSE}
+model_results %>% knitr::kable()
 ```
-
-```{r regularized_movie_and_user_and_year_and_genre_validation_results_final_ouput, echo=FALSE}
-```
-
-It is apparent from the numbers presented above that without regularization we cannot achieve RMSE numbers less then the threshold value of **`r threshold_value`**.\newline\newline 
-
-I wanted to examine options for improvement of the algorithm and introduced regularization into the models. The simplest regularization model, using only the movie affect with an optimized lambda, was not good enough for our calculations, and actually regressed from our third model (shown above). However, regularization with movie AND user effect beat the previously best-performing model. Adding in the release year in model # 6 increased our performance even further, and finally, using regularization combined with the movie, user, release year and genre effects proved to be the most efficient model of the models tested.\newline\newline
-**Applying this final model, #7, to the validation set, gave us a validated RMSE of `r final_rmse`**. 
-\pagebreak
 
 # Conclusion
 
 ## Report Summary
 
-In this project, I have built a machine learning algorithm to predict movie ratings with MovieLens dataset, and estimate their accuracy with RMSE. The **regularized model including the effect of user, movie, release year and genre** is characterized by the lowest RMSE value of all I have examined, and is hence the optimal model to use for the present project - out of the models presented. 
 
-The final rating model uses  **regularization**, which constrains the total variability of the effect sizes by penalizing large estimates that come from small sample sizes. With a tuning parameter $\lambda$ to generate a rating  $Y_{u,i}$ for movie $i$ by user $u$. These calculations can be summarized with the following formula:
-
-$$\frac{1}{N} \sum_{u,i} \left(y_{u,i} - \mu - b_i - b_u - b_y -b_g \right)^2 + \lambda \left(\sum_{i} b_i^2 + \sum_{u} b_u^2 + \sum_{i} b_y^2 + \sum_{i} b_g^2 \right)$$
-
-where the variables are:
-
-* **$\mu$** is the average rating across all movies
-* **$b_i$** is the per-movie movie bias
-* **$b_u$** is the per-user movie bias
-* **$b_y$** is the age of movie (year) bias
-* **$b_g$** is the genre bias
-
-The first term in the equation above is the mean squared error calculation , and the second term is the penalty term that gets larger when all the effects listed above (movie effect, user effect, release year effect, and genre effect) are large. Re-working the equation using calculus we can show that we need a $\lambda$ value that will minimize the equation that adds the penalty for all of the effects mentioned. 
-
-The **RMSE** arrived at with this model on the **validation dataset** is **`r final_rmse`** - which is sufficiently accurate, as it is lower than the initial evaluation criteria **`r threshold_value`** given by the goal of the present project.\newline\newline
-
-**As mentioned above, due to the way the function ```createDataPartition``` works, movies with 3 reviews or less have been excluded from the dataset in order to prevent NA errors in the RMSE calculations.** 
-
-\pagebreak
 
 ## Other Options
 
 ### Using Various Regression Functions.
-During this process I have also attempted to run the predictions using the ```train()``` R function,   with methods that included Linear Regression ("lm"), LASSO regression ("glmnet"), and Generalized Linear Regression ("glm"). When conducted on a small part of the data set, these functions produced an inferior RMSE result, not in line with the threshold required. More importantly, all 3 of these methods crashed the system when attempted to be run on the full dataset - showing that these are not realistic tools to be used for datasets of this size (in the millions).
 
 ### Possible Improvements
 
