@@ -285,7 +285,7 @@ model_results %>% knitr::kable()
 ### 3. Naive Bayes
 ```{r nb_default, echo=FALSE, include=FALSE}
 ```
-The next attemped model is the Naive Bayes Model. In the initial attempt, I used the same training/testing dataframes as in the classification trees attempts described above. This produced an accuracy of **`r nb_accuracy`**, which is so far the lowest we've seen (and will prove to be the worst). 
+The next model attempted is the **Naive Bayes Model**. In the initial attempt, I used the same training/testing dataframes as in the classification trees attempts described above. This produced an accuracy of **`r nb_accuracy`**, which is so far the lowest we've seen (and will prove to be the worst). 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
@@ -299,67 +299,71 @@ model_results %>% knitr::kable()
 
 ### 4. Generalized Linear Models (GLM)
 
-The next, and most extensive set of models uses **Generalized Linear Regression** - a variation of linear regression that allows for predictions of categorical variables. Since here we are trying to predict the variable **state**, which is categorical, GLM are a good option to experiment with. I attempt to run the models on several of the build-in and engineered predictors, as shown above. The best-performing model in the GLM category is the one that uses the most factors.
+The next, and most extensive set of models uses **Generalized Linear Regression** - a variation of linear regression that allows for predictions of categorical variables. Since here we are trying to predict the variable **state**, which is categorical, GLM are a good option to experiment with. I attempt to run the models on several of the built-in and engineered predictors, as shown above. Unsurpsingly, the best-performing model in the GLM category is the one that uses the most factors.
 
 #### 4.1 1 Predictor - Category
-First, we use the sole variable **"category"** as a predictor. 
 ```{r glm_1, echo=FALSE, include=FALSE}
 ```
+First, we use the sole variable **"category"** as a predictor for the **state** variable. The result is marked as **'GLM 1'** , and the calculated accuracy is **`r cf1_accuracy`**. 
+
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
 
 #### 4.2 2 Predictors - Category and Time In Days
-Next, we use the variables **"category"** and **time_int** (the time in days from launch to goal date) as a predictor. This gives us slightly better results, and is marked as **"GLM 2"**. 
 ```{r glm_2, echo=FALSE, include=FALSE}
 ```
+Next, we use the variables **"category"** and **time_int** (the time in days from launch to goal date) as a predictor. This gives us slightly better results (accuracy of **`r cf2_accuracy`**), and is marked as **"GLM 2"**. 
+
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
 
 #### 4.3 3 Predictors - Category, Time In Days, and Country
-Next, we use the variables **"category"** and **time_int**, and **country**. This gives us slightly better results, and is marked as **"GLM 3"**. 
 ```{r glm_3, echo=FALSE, include=FALSE}
 ```
+Next, we use the variables **"category"** and **time_int**, and **country**. This gives us slightly better results (accuracy of **`r cf3_accuracy`**), and is marked as **"GLM 3"**. 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
 
 #### 4.4 4 Predictors - Category, Time In Days, Country and Goal Amount in $USD
-Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**. This gives us slightly better results, and is marked as **"GLM 4"**. 
 ```{r glm_4, echo=FALSE, include=FALSE}
 ```
+Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**. This gives us slightly better results (accuracy of **`r cf4_accuracy`**), and is marked as **"GLM 4"**. 
+
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
 
 #### 4.5 5 Predictors - Category, Time In Days, Country, Goal Amount in $USD, and Launched Month
-Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, and **"launched_month"**. This gives us slightly better results, and is marked as **"GLM 5"**. 
 ```{r glm_5, echo=FALSE, include=FALSE}
 ```
+Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, and **"launched_month"**. This gives us slightly better results (accuracy of **`r cf5_accuracy`**), and is marked as **"GLM 5"**. 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
 #### 4.6 6 Predictors - Category, Time In Days, Country,  Goal Amount in $USD, Launched Month, and Launched Day of the Week
-Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, and **"launched_month"**. This gives us slightly better results, and is marked as **"GLM 6"**. 
 ```{r glm_6, echo=FALSE, include=FALSE}
 ```
+Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, and **"launched_month"**. This gives us slightly better results (accuracy of **`r cf6_accuracy`**), and is marked as **"GLM 6"**. 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
 
-#### 4.7 7 Predictors - Category, Time In Days, Country,  Goal Amount in $USD, Launched Month, Launched Day of the Week, and Currency
-Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, **"launched_month"**, and **"currency"**. This gives us slightly better results, and is marked as **"GLM 7"**. 
 ```{r glm_7, echo=FALSE, include=FALSE}
 ```
+#### 4.7 7 Predictors - Category, Time In Days, Country,  Goal Amount in $USD, Launched Month, Launched Day of the Week, and Currency
+Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, **"launched_month"**, and **"currency"**. This gives us the **same** result as 'GLM 6' (**`r cf7_accuracy`**) - so it seems that the Currency predictor **wasn't** helpful. The result is marked as **"GLM 7"**. 
+
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
 
 #### 4.8 8 Predictors - Category, Time In Days, Country, Goal Amount in $USD, Launched Month, Launched Day of the Week, Currency, and Year Luanched.
-Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, **"launched_month"**, **"currency"**, and **"launched_year"**. This gives us slightly better results, and is marked as **"GLM 8"**. 
 ```{r glm_8, echo=FALSE, include=FALSE}
 ```
+Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, **"launched_month"**, **"currency"**, and **"launched_year"**. This gives us slightly better results (**`r cf8_accuracy`**), and is marked as **"GLM 8"**. 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
@@ -368,7 +372,11 @@ model_results %>% knitr::kable()
 # Results
 ```{r final_results, echo=FALSE, include=FALSE}
 ```
-After creating a number of predictive algorithms, the best model as per the project requirements is the one with the highest accuracy so far - this happens to be the  **`r top_model$model`** model, with the accuracy of **`r top_model$accuracy`**.
+After creating a number of predictive algorithms, the best model as per the project requirements is the one with the highest accuracy so far - this happens to be : \newline
+Model - **`r top_model$model`** \newline
+Accuracy - **`r top_model$accuracy`** \newline
+
+The models, sorted in descending order of accuracy, are shown below:
 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
@@ -377,23 +385,27 @@ model_results %>% knitr::kable()
 # Conclusion
 
 ## Report Summary
-
+In this project, I have built several machine learning algorithm to predict project success prediction system of the Kickstarter dataset, available from Kaggle. Project success, for the purposes of this exercise, was set to be the **'successful'** value of the **'state'** variable of the Kickstarter dataset. For prediction purposes, even though the state variable had 6 different options, we selected projects with only 'succesful' or 'failed' for our prediction engine.\newline
+The accuracy of each algorithm has been provided, and tested against a test set, which was selected to be as 20% of the presented data set (the training set being the other 80%). The **`r top_model$model`** is characterized by the **highest accuracy value (`r top_model$accuracy`)** of all the models I have examined, and is hence the optimal model to use for the present project. 
 
 
 ## Other Options
 
-### Using Various Regression Functions.
+### Exclusion
 
-### Possible Improvements
+I have also attemped to run the **K Nearest Neighbors** algorithm on this dataset. While this provided decent results, the processing time to run KNN was un acceptable (> 5 hours.) I have therefor chosen to exclude this model from the project; however, the code is still available (albeit commented out), in the .R file attached to the project.
 
-I think improvements on the RMSE could be achieved by evaluating the project with other means. Different machine learning models could also improve the results further, but hardware limitations (memory and processing power) may be a constraint.
+### Possible Extensions and Improvements
 
 The possible evaluation models we can also attempt to get even better results would include:
 
-* Matrix factorization / Single Value Decomposition (SVD) / Principal Component Analysis (PCA)
-* Gradient Descent 
-* SGD Code Walk
+* Xgboost Model
+* GBM Model
+* Regularization
 
+Another possiblity for improvement is to be even more creative with feature engineering. Just as we created 3 variables from the launch dates (Month, Day of the Week, and Year launched), we can create the same variables from the deadline variable. 
+\newline
+Finally, we can extend our predictions to include not only the categorical **state** variable ( that simply predicts the success or failure of the project), and **try to predict the actual amount of moneys raised** for each project.
 
 \pagebreak
 

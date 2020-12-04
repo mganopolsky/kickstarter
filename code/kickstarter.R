@@ -452,7 +452,6 @@ model_results <- bind_rows(model_results, rf_model_output)
 #state_actual <- matrix_testset$state
 #knn_tbl45 <- table(state_actual, knn.fit45)
 #knn_accuracy45 <- get_accuracy(knn_tbl45)
-#accuracy_results['K Nearest Neighbors - k=45'] = knn_accuracy45
 #knn_model_output <- tibble(model = "K Nearest Neighbors - k=45", accuracy = knn_accuracy45) 
 #model_results <- bind_rows(model_results, knn_model_output)
 
