@@ -138,6 +138,7 @@ levels(ds$state)
 levels(ds$launched_month)
 levels(ds$launched_day_of_week)
 levels(ds$launched_year)
+levels(ds$country)
 
 ## ---- filtere_N0 --------
 #Country "N,0\"" seems strange - we'll keep an eye out for that later.
@@ -345,7 +346,7 @@ test_ds <- ds[test_lm_index,]
 
 #classification trees model
 ## ---- ct_model --------
-ct_model <- rpart(state ~ ., data = lm_ds, method = "class", control = rpart.control(maxdepth = 5, minsplit=200))
+ct_model <- rpart(state ~ ., data = lm_ds, method = "class", control = rpart.control(maxdepth = 7, minsplit=100))
 ct_pred <- predict(ct_model, test_ds, type = "class")
 #rpart.plot(ct_model)
 
@@ -425,7 +426,7 @@ matrix_testset$state = as.factor(matrix_testset$state)
 #matrix_testset <- ds_matrix_data[-idx , ]
 
 #we can now use the random forest with the various dummy variables
-rf.fit <- randomForest::randomForest(formula=state ~ . , data=matrix_trainset[sample(dim(matrix_trainset)[1] , 150000) , ] , ntree = 200)
+rf.fit <- randomForest::randomForest(formula=state ~ . , data=matrix_trainset[sample(dim(matrix_trainset)[1] , 200000) , ] , ntree = 200)
 
 
 rf_preds <- predict(rf.fit , matrix_testset)
