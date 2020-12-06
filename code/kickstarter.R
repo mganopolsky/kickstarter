@@ -87,7 +87,7 @@ ds %>% distinct(launched) %>% arrange(launched) %>% head()
 
 ## ---- launched_1970 --------
 ds %>% filter(launched=='1970-01-01') %>% 
-  dplyr::select(launched, name, category, deadline, backers, goal)
+  dplyr::select(launched, name, state, category, deadline, backers, goal)
 
 ## ---- delete_1970 --------
 #let's remove the dates on 1/1/1970
@@ -95,7 +95,8 @@ ds <- ds %>% filter(launched >= "2009-04-21")
 
 #let's look at items with a pledge ration of less then 1
 ## ---- pledge_less_1 --------
-failed <- ds %>% filter(pledged_ratio < 1) 
+failed <- ds %>% filter(pledged_ratio < 1) %>% 
+  dplyr::select(name,  state, category, deadline, goal, pledged, usd_pledged_real, usd_goal_real, pledged_ratio)
 failed %>% distinct(state)
 #it appeaers that some are succeessful despite having not met their goal!
 ## ---- pledge_less_2 --------
@@ -305,7 +306,8 @@ ds <- ds %>% dplyr::select(category ,  country , usd_goal_real ,  time_int ,  la
 #this function will return a trained model based on the predictors and predicted field, which will be dynamically built. ( I will be running 7 diffeerent GLM models here and they will all be dynamically generated)
 
 ## ---- GLM_functions --------
-results_GLM <- function(train_data, predicted_field_name, predictors_list, model_family=binomial) {
+results_GLM <- function(train_data, predicted_field_name, 
+                        predictors_list, model_family=binomial) {
   fm_string <- paste(predicted_field_name, "~")
   for (i in 1:length(predictors_list)) {
     fm_string <- paste(fm_string, predictors_list[i])
@@ -322,9 +324,11 @@ results_GLM <- function(train_data, predicted_field_name, predictors_list, model
 
 get_confusion_matrix <- function(model_fit, test_data)
 {
-  aug_model <- augment(model_fit, newdata = test_data, type.predict = 'response')
+  aug_model <- augment(model_fit, newdata = test_data, 
+                       type.predict = 'response')
   
-  result <- aug_model %>% mutate(Prediction = factor(round(.fitted)), Reference = state) %>%   
+  result <- aug_model %>% 
+    mutate(Prediction = factor(round(.fitted)), Reference = state) %>%   
     dplyr::select(Reference , Prediction ) %>% table()
   
   return (caret::confusionMatrix(result))
@@ -340,6 +344,7 @@ get_accuracy <- function(cf_matrix)
 #since the outcome is a factor and not just numeric, we can't use simple linear regression to calculate this. we need to use GLM
 #predictions based solely on category
 set.seed(1, sample.kind="Rounding")
+#selecting a 20% test set vs 80% training set
 test_lm_index <- createDataPartition(y = ds$state, times = 1, p = 0.2) %>% unlist()
 lm_ds <- ds[-test_lm_index,]
 test_ds <- ds[test_lm_index,]
@@ -356,7 +361,7 @@ ct_table <- table(test_ds$state, ct_pred)
 # Compute the accuracy on the test dataset
 ct_accuracy <- get_accuracy(ct_table)
 #accuracy_results['Classification Trees'] <-  ct_accuracy
-model_results <- tibble(model = "Classification Trees mex depth=5,minsplit=200", accuracy = ct_accuracy) 
+model_results <- tibble(model = "Classification Trees mex depth=7,minsplit=100", accuracy = ct_accuracy) 
 
 
 
@@ -382,7 +387,7 @@ pruned.tree <- prune(ct_prune_model, cp = cp)
 ct_pred_pruned <- predict(pruned.tree, test_ds, type = "class")
 ct_pruned_table <- table(test_ds$state, ct_pred_pruned)
 ct_pruned_accuracy <- get_accuracy(ct_pruned_table)
-cf_p_model_output <- tibble(model = paste('cp=0 Classification Trees post-pruned with min cp=', cp, sep=""), accuracy = ct_pruned_accuracy) 
+cf_p_model_output <- tibble(model = paste('Classification Trees, default parameters & cp=0, post-pruned with min cp=', cp, sep=""), accuracy = ct_pruned_accuracy) 
 model_results <- bind_rows(model_results, cf_p_model_output)
 
 
@@ -405,14 +410,7 @@ ct_pruned_accuracy2 <- get_accuracy(ct_pruned_table2)
 cf_p2_model_pruned_output <- tibble(model = paste('Classification Trees, default params, post-pruned cp=', cp, sep=""), accuracy = ct_pruned_accuracy2) 
 model_results <- bind_rows(model_results, cf_p2_model_pruned_output)
 
-
-
 ## ---- randomForest --------
-#ds_matrix_data <- data.frame(model.matrix( ~ . -1 , ds))
-#rename the last column to 'state'
-#colnames(ds_matrix_data)[ncol(ds_matrix_data)] = 'state'
-#ds_matrix_data$state = as.factor(ds_matrix_data$state)
-
 matrix_trainset <- data.frame(model.matrix( ~ . -1 , lm_ds))
 matrix_testset <- data.frame(model.matrix( ~ . -1 , test_ds))
 colnames(matrix_trainset)[ncol(matrix_trainset)] = 'state'
@@ -421,13 +419,11 @@ matrix_trainset$state = as.factor(matrix_trainset$state)
 matrix_testset$state = as.factor(matrix_testset$state)
 
 #set.seed(123)
-#idx <- sample(dim(ds_matrix_data)[1] , dim(ds_matrix_data)[1]*0.80 , replace = FALSE)
-#matrix_trainset <- ds_matrix_data[idx , ]
-#matrix_testset <- ds_matrix_data[-idx , ]
-
 #we can now use the random forest with the various dummy variables
-rf.fit <- randomForest::randomForest(formula=state ~ . , data=matrix_trainset[sample(dim(matrix_trainset)[1] , 200000) , ] , ntree = 200)
-
+#depending on how much memory the computer running this code has, use the following lines below. If not too much, uncomment the next 
+#line and use with a sample of 100,000. If enough memory is available, there is no need to sample the matrix.
+#rf.fit <- randomForest::randomForest(formula=state ~ . , data=matrix_trainset[sample(dim(matrix_trainset)[1] , 100000) , ] , ntree = 200)
+rf.fit <- randomForest::randomForest(formula=state ~ . , data=matrix_trainset , ntree = 200)
 
 rf_preds <- predict(rf.fit , matrix_testset)
 rf_cf_matrix <- table(Actual = matrix_testset$state , Predictions = rf_preds)
@@ -567,6 +563,17 @@ cf8_accuracy <- get_accuracy(cf8$table)
 #accuracy_results['GLM cf8'] =  cf8_accuracy
 cf8_model_output <- tibble(model = "GLM 8 predictors", accuracy = cf8_accuracy) 
 model_results <- bind_rows(model_results, cf8_model_output)
+
+
+## ---- glm_9 --------
+#Since we know from GLM7 that the "currency" variable isn't helpful, how will it affect the previous model if we remove it?
+col_subset <- columns[columns %in% c("category", "time_int", "country", "usd_goal_real", "launched_month", "launched_day_of_week", "launched_year")]
+glm_9 <- results_GLM(lm_ds, "state", col_subset)
+cf9 <- get_confusion_matrix(model_fit= glm_9, test_data = test_ds)
+cf9_accuracy <- get_accuracy(cf9$table)
+#accuracy_results['GLM cf8'] =  cf8_accuracy
+cf9_model_output <- tibble(model = "GLM 9 predictors", accuracy = cf9_accuracy) 
+model_results <- bind_rows(model_results, cf9_model_output)
 
 #sorted model results by accuracy 
 

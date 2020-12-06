@@ -1,7 +1,7 @@
 ---
 title: "PH125.9x Data Science Capstone - Kaggle Kickstarter Dataset Analysis and Predictions"
 author: "Marina Ganopolsky"
-date: "12/3/2020"
+date: "12/6/2020"
 output: 
   pdf_document: 
     fig_height: 5
@@ -57,12 +57,12 @@ A quick summary of the data wrangling modifications will be provided, as well as
 
 An exploratory analysis will be performed to generate the **predicted success levels of Kickstarter projects**, with various models, to be specified; a best-performing algorithm will be chosen, and the results of the calculations will be analyzed and explained; finally a conclusion will be provided.
 
-Several models will be developed, ranging from the most naive to the most complex. These will be tested and compared using their **accuracy** value in order to assess their quality. In contrast to the **MovieLens** project there is no ideal evaluation criteria for this project. However, since we have several models available, and we will pick the model with
+Several models will be developed, ranging from the most naive to the most complex. These will be tested and compared using their **accuracy** value in order to assess their quality. In contrast to the **MovieLens** project there is no ideal evaluation criteria for this project. However, since we have several models available, and we will pick the model with:
 
 1. Over 50% accuracy (since that is better then simply random)
-2. The highest accuracy as the chosen model to produce the accuracy of the model.
+2. The highest accuracy of the other available models.
 
-The data is broken into a **training dataset** (80%), and a **testing dataset**(20%). After evaluating every available algorithm I have come up with, the best-resulting model will be used on the **test dataset** to evaluate the quality of the predictions of the kickstarter project success. 
+The data is broken into a **training dataset** (80%), and a **testing dataset**(20%). A standard 80/20 split for training and testing the data was used so as to not over-train the data. Every available algorithm I have come up with will be trained on the training set, and each model will be tested on the **test dataset**. The model with the highest **accuracy** value will be selected as the optimal one for the predictions of the kickstarter projects' success. 
 
 This project can be found on **GitHub** [here](https://github.com/mganopolsky/kickstarter) .   \pagebreak
 
@@ -77,73 +77,94 @@ The **Kickstarter** dataset is automatically downloaded with the code provided; 
 
 * https://raw.githubusercontent.com/mganopolsky/kickstarter/master/data/ks-projects-201801.csv
 
+**Per row, this dataset a representation of a single Kickstarter campaign and its various attributes.** 
+
 As specified by the project description (and the provided code) the data is split into a **test set (20%)** and the **training set(80%)**, after some feature engineering is applied to it. The calculations and algorithm verification are done on the training set, and each algorithm is tested on the test set.
 
 As a first step, in order to get some basic information about the data we're working with, we examine the **```kickstarter```** dataset. The original dataset contains 15 variables :
+
 ```{r, glimpse_data, echo=TRUE, include=TRUE, warning=FALSE}
 ```
 
 A fair amount of data manipulation has been done to the datasets created with the provided code. The changes include:
 ```{r, massage_data, echo=FALSE, include=FALSE, results='hide', warning=FALSE}
 ```
-* **New Field** : Adding a time interval in days, as the difference between the launch date and the deadline date : **time_int**
-* **New Field** : Extracting the month of the year from the launch date, as saving it as a factor in **launched_month**
-* **New Field** : Extracting the year from the launch date, as saving it as a factor in **launched_year**
-* **New Field** : Extracting the day of the week from the launch date, as saving it as a factor in **launched_day_of_week**
-* **New Field** : Added a field as a rounded numeric representing the pledge:goal ratio in USD **pledged_ratio**
-* **New Field** : Added a field as a rounded numeric representing the average pledge per backer in USD **avg_backer_pldg**
-* Changed the **launched** field into a date (as opposed to a date/time field)
-* **Removed Field** : Removed the  **`usd pledged`** field, as there was the usd_pledged_real represented what was actually needed.
+* **New Field** : Adding a time interval in days, as the difference between the launch date and the deadline date : **`time_int`**
+* **New Field** : Extracting the month of the year from the launch date, as saving it as a factor in **`launched_month`**
+* **New Field** : Extracting the year from the launch date, as saving it as a factor in **`launched_year`**
+* **New Field** : Extracting the day of the week from the launch date, as saving it as a factor in **`launched_day_of_week`**
+* **New Field** : Added a field as a rounded numeric representing the pledge:goal ratio in USD **`pledged_ratio`**
+* **New Field** : Added a field as a rounded numeric representing the average pledge per backer, per project in USD **`avg_backer_pldg`**
+* Changed the **`launched`** field into a date (as opposed to a date/time field)
+* **Removed Field** : Removed the  **`usd pledged`** field, as there was the **`usd_pledged_real`** represented what was actually needed.
 
 * After the data wrangling and data visualization exercises (see below) are complete, the dataset is split up into :
   + **A training dataset** - the data the algorithms will be trained on, **80%** of the remaining data.
   + **A testing dataset** - the data the algorithms will be tested on, **20%** of the remaining data.
 
-Per row, this is a representation of a single Kickstarter campaign. \newline
+\pagebreak
+
 **As a first glance, here's a snapshot of dataset:**
 
+ 
 ```{r, summary_ds, echo=FALSE}
 ```
 
+\pagebreak 
+
 **The first few lines of the dataset look like this:**
 
+ 
 ```{r,  echo = FALSE, tidy=TRUE}
 head(ds) %>%  print.data.frame()
 ```
-
+ 
 # Methods and Analysis
 
 ## Data Insights, Cleaning & Visualizations
 
 ### Initial Insights
 
-Glancing over the information most things seem fine at a first review; one thing that jumps out is the minimum value of the **launched** field, which is **1/1/1970**. This is probably an error in the data - let's examine it:
+Glancing over the information most things seem fine at a first review; one thing that jumps out is the minimum value of the **`launched`** field, which is **`1/1/1970`**. This is probably an error in the data - let's examine it:
 
-```{r, launched_ds, echo=TRUE, include=FALSE, warning=FALSE}
+ 
+```{r, launched_ds, echo=FALSE, include=FALSE, warning=FALSE, tidy=TRUE}
 ```
+ 
 
-Viewing a list of the furthest ordered launch dates, we see that 1/1/1970 is a strange outlier. We dig further by analyzing the entries with this information:
+Viewing a list of the furthest ordered launch dates, we see that 1/1/1970 is a strange outlier. We dig further by analyzing the entries with 
+this information:
+
+ 
 ```{r, launched_1970, echo=TRUE, include=TRUE, warning=FALSE}
 ```
+ 
 
 Based on the names, most of these campaigns have been **cancelled**. It's worth noting that in the predictive modeling section, our models will exclude projects that do not fall into the **"successful"** or **"failed"** categories. Therefor, we will remove these entries from the data.
 
 ```{r, delete_1970, echo=FALSE, include=FALSE, warning=FALSE}
 ```
 
+\pagebreak
+
 ### Pledge Information
 
-What kind of information can be gleaned from failed projects? \neewline
-We examine projects where the pledge ratio is < 1 (meaning that they **did not meet their fund-raise goal**.)
-```{r, pledge_less_1, echo=FALSE, warning=FALSE, message=FALSE}
+What kind of information can be gleaned from failed projects? \newline
+
+We examine what states projects where the pledge ratio is < 1 (meaning that they **did not meet their fund-raise goal**) fall into:
+
+ 
+```{r, pledge_less_1, echo=FALSE, warning=FALSE, message=FALSE, tidy=TRUE}
 ```
 
 It appears that some projects are successful despite not having met their funding goal!
-```{r, pledge_less_2, echo=FALSE, warning=FALSE, message=FALSE}
+ 
+```{r, pledge_less_2, echo=FALSE, warning=FALSE, message=FALSE, tidy=TRUE}
 ```
+ 
 
 The project raised a significant sum though - 85% of what it needed; and it went on to be successful. However, it's the only one of its kind.
-This of course, begs the question of what happens kind of funding rates we see for both failed and successful projects. We will examine this later in this document.
+This of course, begs the question of what kind of funding rates we see for both failed and successful projects. We will examine this later in this document.
 
 Viewing the pledge ratios' cumulative distribution, **it is obvious that most of the successful projects are funded around 100%  or slightly higher - with the ratios hovering around 1. However, there are actually a significant amount of projects that are funded at thousands of times their goal value.**:\newline
 
@@ -151,27 +172,39 @@ Viewing the pledge ratios' cumulative distribution, **it is obvious that most of
 ```
 
 ### Data Manipulation
-Since we will be using models that require fields set as factors, the predictive fields of the dataset will be manipulated to be changed into factors. 
+Since we will be using models that require fields set as **factors**, the predictive fields of the dataset will be manipulated to be changed into factors. 
 ```{r factors3, echo=FALSE, warning=FALSE, results='hide'} 
 ```
-The levels of the factors of these fields can be viewed here:
+The **levels** of the factors of these fields can be viewed here:
+
+ 
 ```{r levels, echo=TRUE, warning=FALSE} 
 ```
+ 
+
 It now seems that the **country** field has some strange values **("N,0\"")** in it; we will remove these records.
 ```{r filtere_N0, include=FALSE, echo=FALSE, warning=FALSE, message=FALSE} 
 ```
 
-### Categories & Funds Pledged
+\pagebreak
+
+### Project Categories & Funds Pledged
 Each project has a **main_category** and a **category** section. Which **main_category** do users attempt to fund most often?
 \newline
 
 ```{r freq, echo=FALSE, warning=FALSE, include=TRUE, message=FALSE, fig.align='left'} 
 ```
+
+\pagebreak
+
 In terms of the main categories, **Film & video** projects seem to be the **most** wide-spreed, while **Dance** is the **least**.
 What does this look like in terms of funds raised?
 \newline
 ```{r raised, echo=FALSE, warning=FALSE, include=TRUE, message=FALSE, fig.align='left'} 
 ```
+
+\pagebreak
+
 And what about sub-categories?
 \newline
 ```{r raised_by_sub_code, echo=FALSE, warning=FALSE, include=TRUE, message=FALSE, fig.align='left'} 
@@ -191,12 +224,16 @@ From the data and the bar graph of the project states, we can make these conclus
 
 The information in the dataset includes some obvious descriptors of what happens in a project, but is hardly a full picture of what happens during a fundraising campaign. We don't know about the marketing efforts, time/funds spent on those, or anything else. Therefor, it's hardly a detailed model we're building, but it's a start. As mentioned earlier, we will be focusing exclusively on the projects that fall into the **"failed"** or **"successful"** categories.
 
+\pagebreak
+
 ### Pledged vs Goal 
 Let's examine the distribution of **pledged value** and **goal value** in **successful** vs **failed projects**; As is evidenced by the density plots on the left side, little info can be gleaned here. However, once the visualization is **log-transformed**, the distributions of the successful projects seem to be nearing normal. The pledged values are normally distributed for successful projects, but not so much for the failed ones; this makes intuitive sense since many failed projects had raised no money at all.\newline
 
 ```{r medians_log_distribution, warning=FALSE, message=FALSE, echo=FALSE, include=TRUE}
 ```
 \newline
+\newline
+
 Digging into this further, a box plot of pledge ratios paints a very clear picture of failed vs. successful projects - and this makes sense intuitively, as well. We've already seen that most successful projects are funded at over 100% of goal.\newline
 
 ```{r pledged_ratios, warning=FALSE, message=FALSE, echo=FALSE}
@@ -205,16 +242,22 @@ Digging into this further, a box plot of pledge ratios paints a very clear pictu
 And if we examine the pledge ratios quantiles, this is also obvious. 
 Failed Projects are funded at 30% in the 90th percentile:
 \newline
+ 
 ```{r failed_quantiled, warning=FALSE, message=FALSE, echo=FALSE}
 ```
+ 
 While successful projects are almost exclusively funded at 100% or higher. :
 \newline
+ 
 ```{r suc_quantiled, warning=FALSE, message=FALSE, echo=FALSE}
 ```
+ 
+\pagebreak
 
 ### Feature Correlation & Pairs
 
-Correlation of some of the features and overview of their relationship is shown here. 
+Correlation of some of the features and overview of their relationship is shown here:
+
 ```{r ggpairs, warning=FALSE, message=FALSE, echo=FALSE, include=TRUE, fig.align='left'}
 ```
 The only items correlated very slightly (.0022) are the **time interval** and the **goal amount in USD**. This makes sense intuitively as the planners expect to raise some amount of money in a specific time.
@@ -227,8 +270,10 @@ The only items correlated very slightly (.0022) are the **time interval** and th
 
 This project used several different functions to help with the creation of dynamic model formulas, as well as some wrappers to quickly and neatly get accuracy and confusion matrix data. I'm including these here.
 
+ 
 ```{r GLM_functions, warning=FALSE, message=FALSE, echo=TRUE, include=TRUE}
 ```
+ 
 
 ## Evaluation Models
 ```{r data_split, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
@@ -250,9 +295,9 @@ The predictors will we use will be chosen from the following fields:
 * The **Month of the Year** the project was launched
 * The **Year** the project was launched
 
-**The AI models will try to predict the 'state' of each kickstarter project in the test dataset.**  \newline
+**The AI models will try to predict the 'state' of each kickstarter project in the test dataset, as either failed or successful.**  \newline
 
-Since we are trying to predict the variable **state** and it is **categorical**, as well as are many of the predictors, **linear regression is not a good option for for this project**, since linear regression only works for numerical variables. Therefor, we attempt the models below. 
+Since we are trying to predict the variable **state** and it is **categorical**, as well as are many of the predictors, basic **linear regression is not a good option for for this project**. This is because linear regression only works for numerical variables. However, Generalized Linear Models (**GLMs**), which have the ability to predict categorical variables, are a good choice of models. We use these models, and others below. 
 
 \pagebreak
 
@@ -260,55 +305,70 @@ Since we are trying to predict the variable **state** and it is **categorical**,
 
 The first model I will attempt will be **classification trees (CT)**. The initial attempt used the following parameters:\newline
 
-1. **maxdepth = 5** ( the maximum depth of any node of the final tree)
-2. **minsplit = 200** ( the minimum number of observations that must be observed before splitting the tree)
+1. **maxdepth = 7** ( the maximum depth of any node of the final tree)
+2. **minsplit = 100** ( the minimum number of observations that must be observed before splitting the tree)
 
 ```{r ct_model, echo=FALSE, include=TRUE, results='show'}
 ```
+
+\pagebreak
 
 The next attempt once again runs the same model, but this time with **all default parameters**, save **cp** (the complexity parameter), which we set to **0**. The logic behind this is that we make a detailed tree and prune it AFTER the model has run its course. **The plot of the cp values** is shown below, showing the optimal (lowest) value for the relative error. 
 
 ```{r ct_pruned_model, echo=FALSE, include=TRUE, results='show'}
 ```
 
-The code then selects this minimal value, **`r cp`**, and prunes the tree with that complexity parameter. The accuracy of the resulting model is **`r ct_pruned_accuracy`**. As I continue with the project, I will display results of the accuracy evaluations of every model, and print them out as shown below - so that the data can be reviewed as the project progresses.\newline
+The code then selects this minimal cp value, **`r cp`**, and prunes the tree with that complexity parameter. The accuracy of the resulting model is **`r ct_pruned_accuracy`**. As I continue with the project, I will display results of the accuracy evaluations of every model, and print them out as shown below - so that the data can be reviewed as the project progresses.\newline
 
+ 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
+ 
 
 Next, still attempting to optimize classification trees, I will attempt to run the model with ALL default parameters set, and then again post-prune the resulting tree by finding the minimum **cp** parameter.  
 
 ```{r ct_model_2, echo=FALSE, include=TRUE, results='show'}
 ```
 This time, the code selects a minimal cp value of  **`r cp`** to prune the tree. The accuracy of the resulting model is **`r ct_pruned_accuracy2`**. \newline
+ 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
+ 
+\pagebreak
 
 ###  2. Random Forest
 
 ```{r randomForest, echo=FALSE, include=FALSE}
 ```
-When first attempting to run the **random forest** algorithm on the data, it became obvious that the general implementation wouldn't be plausible here due to some of the factors (the **categories** in particular) having more then 32 levels. (This is a limitation of the random forest algorithm implementation in R.) Therefor, the data had to be converted into a matrix with dummy variables. A sample of **200,000** was taken to evaluate the training set; the processing time for this was very long - and in the future implementation of the model I will attempt to run random forest on a larger subset of data. The final random forest model accuracy with **200 trees and a 200,000 samples** was **`r rf_accuracy`**. \newline
-
+When first attempting to run the **random forest** algorithm on the data, it became obvious that the general implementation wouldn't be plausible here due to some of the factors (the **categories** in particular) having more then 32 levels. (This is a limitation of the random forest algorithm implementation in R.) Therefor, the data had to be converted into a matrix with dummy variables. On machines with limited hardware capabilities, I include an option in code (line 425) to take a sample of **100,000** of the dummy variable matrix that is created from the training dataset. For my purposes, the code can run on the full set of data (as used in line 426). The final random forest model accuracy with **200 trees and a full sample training set** was **`r rf_accuracy`**. \newline
+ 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
+ 
+
 ### 3. Naive Bayes
 ```{r nb_default, echo=FALSE, include=FALSE}
 ```
 The next model attempted is the **Naive Bayes Model**. In the initial attempt, I used the same training/testing dataframes as in the classification trees attempts described above. This produced an accuracy of **`r nb_accuracy`**, which is so far the lowest we've seen (and will prove to be the worst). 
+
+ 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
+ 
 
 ```{r nb_matrix, echo=FALSE, include=FALSE}
 ```
 However, the algorithm also takes matrices as input, and at the next iteration the model will attempt to evaluate the accuracy on the matrix data (which is simply the dataset with dummy variables.) Here, the accuracy was much higher, at **`r nb_m_accuracy`**. 
+ 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
+ 
+\pagebreak
 
 ### 4. Generalized Linear Models (GLM)
 
@@ -317,83 +377,119 @@ The next, and most extensive set of models uses **Generalized Linear Regression*
 #### 4.1 1 Predictor - Category
 ```{r glm_1, echo=FALSE, include=FALSE}
 ```
+
 First, we use the sole variable **"category"** as a predictor for the **state** variable. The result is marked as **'GLM 1'** , and the calculated accuracy is **`r cf1_accuracy`**. 
 
+ 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
+ 
 
 #### 4.2 2 Predictors - Category and Time In Days
 ```{r glm_2, echo=FALSE, include=FALSE}
 ```
 Next, we use the variables **"category"** and **time_int** (the time in days from launch to goal date) as a predictor. This gives us slightly better results (accuracy of **`r cf2_accuracy`**), and is marked as **"GLM 2"**. 
-
+ 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
+ 
 
 #### 4.3 3 Predictors - Category, Time In Days, and Country
 ```{r glm_3, echo=FALSE, include=FALSE}
 ```
 Next, we use the variables **"category"** and **time_int**, and **country**. This gives us slightly better results (accuracy of **`r cf3_accuracy`**), and is marked as **"GLM 3"**. 
+ 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
+ 
 
 #### 4.4 4 Predictors - Category, Time In Days, Country and Goal Amount in $USD
 ```{r glm_4, echo=FALSE, include=FALSE}
 ```
 Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**. This gives us slightly better results (accuracy of **`r cf4_accuracy`**), and is marked as **"GLM 4"**. 
-
+ 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
+ 
 
 #### 4.5 5 Predictors - Category, Time In Days, Country, Goal Amount in $USD, and Launched Month
 ```{r glm_5, echo=FALSE, include=FALSE}
 ```
 Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, and **"launched_month"**. This gives us slightly better results (accuracy of **`r cf5_accuracy`**), and is marked as **"GLM 5"**. 
+ 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
+ 
+
 #### 4.6 6 Predictors - Category, Time In Days, Country,  Goal Amount in $USD, Launched Month, and Launched Day of the Week
 ```{r glm_6, echo=FALSE, include=FALSE}
 ```
 Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, and **"launched_month"**. This gives us slightly better results (accuracy of **`r cf6_accuracy`**), and is marked as **"GLM 6"**. 
+
+ 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
+ 
 
 ```{r glm_7, echo=FALSE, include=FALSE}
 ```
+
 #### 4.7 7 Predictors - Category, Time In Days, Country,  Goal Amount in $USD, Launched Month, Launched Day of the Week, and Currency
 Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, **"launched_month"**, and **"currency"**. This gives us the **same** result as 'GLM 6' (**`r cf7_accuracy`**) - so it seems that the Currency predictor **wasn't** helpful. The result is marked as **"GLM 7"**. 
 
+ 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
+ 
 
 #### 4.8 8 Predictors - Category, Time In Days, Country, Goal Amount in $USD, Launched Month, Launched Day of the Week, Currency, and Year Launched.
 ```{r glm_8, echo=FALSE, include=FALSE}
 ```
 Next, we use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, **"launched_month"**, **"currency"**, and **"launched_year"**. This gives us slightly better results (**`r cf8_accuracy`**), and is marked as **"GLM 8"**. 
+
+ 
+```{r  echo=FALSE}
+model_results %>% knitr::kable()
+```
+ 
+
+#### 4.9 7 Predictors - Category, Time In Days, Country, Goal Amount in $USD, Launched Month, Launched Day of the Week, and Year Launched.
+```{r glm_8, echo=FALSE, include=FALSE}
+```
+Since we know from section 4.7 that the currency predictor was not helpful, how will removing it from the previous model affect it? The conjecture is that we will get the same result with fewer predictions. We use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, **"launched_month"**, and **"launched_year"**. This gives us the same results (**`r cf9_accuracy`**), and is marked as **"GLM 9"**. 
+
+ 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
 
+\pagebreak
 
 # Results
+
+ 
 ```{r final_results, echo=FALSE, include=FALSE}
 ```
+ 
+
 After creating a number of predictive algorithms, the best model as per the project requirements is the one with the highest accuracy so far - this happens to be : \newline
 Model - **`r top_model$model`** \newline
 Accuracy - **`r top_model$accuracy`** \newline
 
 The models, sorted in descending order of accuracy, are shown below:
 
+ 
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
+ 
 
 # Conclusion
 
