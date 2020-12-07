@@ -575,6 +575,10 @@ cf9_accuracy <- get_accuracy(cf9$table)
 cf9_model_output <- tibble(model = "GLM 9 predictors", accuracy = cf9_accuracy) 
 model_results <- bind_rows(model_results, cf9_model_output)
 
+
+#model_results <- cf9_model_output
+
+
 #sorted model results by accuracy 
 
 ## ---- final_results --------

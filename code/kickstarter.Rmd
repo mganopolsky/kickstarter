@@ -77,7 +77,7 @@ The **Kickstarter** dataset is automatically downloaded with the code provided; 
 
 * https://raw.githubusercontent.com/mganopolsky/kickstarter/master/data/ks-projects-201801.csv
 
-**Per row, this dataset a representation of a single Kickstarter campaign and its various attributes.** 
+**Per row, this dataset is a representation of a single Kickstarter campaign and its various attributes.** 
 
 As specified by the project description (and the provided code) the data is split into a **test set (20%)** and the **training set(80%)**, after some feature engineering is applied to it. The calculations and algorithm verification are done on the training set, and each algorithm is tested on the test set.
 
@@ -197,7 +197,8 @@ Each project has a **main_category** and a **category** section. Which **main_ca
 
 \pagebreak
 
-In terms of the main categories, **Film & video** projects seem to be the **most** wide-spreed, while **Dance** is the **least**.
+In terms of the main categories, **Film & video** projects seem to be the **most** wide-spreed, while **Dance** is the **least**.\newline
+
 What does this look like in terms of funds raised?
 \newline
 ```{r raised, echo=FALSE, warning=FALSE, include=TRUE, message=FALSE, fig.align='left'} 
@@ -232,7 +233,6 @@ Let's examine the distribution of **pledged value** and **goal value** in **succ
 ```{r medians_log_distribution, warning=FALSE, message=FALSE, echo=FALSE, include=TRUE}
 ```
 \newline
-\newline
 
 Digging into this further, a box plot of pledge ratios paints a very clear picture of failed vs. successful projects - and this makes sense intuitively, as well. We've already seen that most successful projects are funded at over 100% of goal.\newline
 
@@ -266,6 +266,8 @@ The only items correlated very slightly (.0022) are the **time interval** and th
 ```{r final_ds_selection, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
 ```
 
+\pagebreak
+
 ## Functions of Note
 
 This project used several different functions to help with the creation of dynamic model formulas, as well as some wrappers to quickly and neatly get accuracy and confusion matrix data. I'm including these here.
@@ -274,6 +276,7 @@ This project used several different functions to help with the creation of dynam
 ```{r GLM_functions, warning=FALSE, message=FALSE, echo=TRUE, include=TRUE}
 ```
  
+\pagebreak
 
 ## Evaluation Models
 ```{r data_split, warning=FALSE, message=FALSE, echo=FALSE, include=FALSE}
@@ -318,25 +321,27 @@ The next attempt once again runs the same model, but this time with **all defaul
 ```{r ct_pruned_model, echo=FALSE, include=TRUE, results='show'}
 ```
 
-The code then selects this minimal cp value, **`r cp`**, and prunes the tree with that complexity parameter. The accuracy of the resulting model is **`r ct_pruned_accuracy`**. As I continue with the project, I will display results of the accuracy evaluations of every model, and print them out as shown below - so that the data can be reviewed as the project progresses.\newline
+The code then selects this minimal cp value, **`r cp`**, and prunes the tree with that complexity parameter. The accuracy of the resulting model is **`r ct_pruned_accuracy`**. \newline
+**Post-pruning here seems to have increased the accuracy of the predictions.**
+As I continue with the project, I will display results of the accuracy evaluations of every model, and print them out as shown below - so that the data can be reviewed as the project progresses.\newline
 
- 
-```{r  echo=FALSE}
-model_results %>% knitr::kable()
-```
- 
-
-Next, still attempting to optimize classification trees, I will attempt to run the model with ALL default parameters set, and then again post-prune the resulting tree by finding the minimum **cp** parameter.  
-
-```{r ct_model_2, echo=FALSE, include=TRUE, results='show'}
-```
-This time, the code selects a minimal cp value of  **`r cp`** to prune the tree. The accuracy of the resulting model is **`r ct_pruned_accuracy2`**. \newline
  
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
  
 \pagebreak
+ 
+Next, still attempting to optimize classification trees, I will to run the model with ALL default parameters set, and then again post-prune the resulting tree by finding the minimum **cp** parameter.  
+
+```{r ct_model_2, echo=FALSE, include=TRUE, results='show'}
+```
+This time, the code selects a minimal cp value of  **`r cp`** to prune the tree. The accuracy of the resulting model is **`r ct_pruned_accuracy2`**. \newline
+**Since the accuracy values of of these last 2 models are the same, it seems that post-pruning the trees had no effect (in this particular case only).** 
+ 
+```{r  echo=FALSE}
+model_results %>% knitr::kable()
+```
 
 ###  2. Random Forest
 
@@ -347,7 +352,8 @@ When first attempting to run the **random forest** algorithm on the data, it bec
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
- 
+
+\pagebreak
 
 ### 3. Naive Bayes
 ```{r nb_default, echo=FALSE, include=FALSE}
@@ -461,7 +467,7 @@ model_results %>% knitr::kable()
  
 
 #### 4.9 7 Predictors - Category, Time In Days, Country, Goal Amount in $USD, Launched Month, Launched Day of the Week, and Year Launched.
-```{r glm_8, echo=FALSE, include=FALSE}
+```{r glm_9, echo=FALSE, include=FALSE}
 ```
 Since we know from section 4.7 that the currency predictor was not helpful, how will removing it from the previous model affect it? The conjecture is that we will get the same result with fewer predictions. We use the variables **"category"** and **time_int**,  **country**, **usd_goal_real**, **"launched_month"**, and **"launched_year"**. This gives us the same results (**`r cf9_accuracy`**), and is marked as **"GLM 9"**. 
 
@@ -473,7 +479,6 @@ model_results %>% knitr::kable()
 \pagebreak
 
 # Results
-
  
 ```{r final_results, echo=FALSE, include=FALSE}
 ```
@@ -489,12 +494,13 @@ The models, sorted in descending order of accuracy, are shown below:
 ```{r  echo=FALSE}
 model_results %>% knitr::kable()
 ```
- 
+\pagebreak
 
 # Conclusion
 
 ## Report Summary
-In this project, I have built several machine learning algorithm to predict project success prediction system of the Kickstarter dataset, available from Kaggle. Project success, for the purposes of this exercise, was set to be the **'successful'** value of the **'state'** variable of the Kickstarter dataset. For prediction purposes, even though the state variable had 6 different options, we selected projects with only 'successful' or 'failed' for our prediction engine.\newline
+In this project, I have used several machine learning algorithms to predict a project success prediction system on the Kickstarter dataset, available from Kaggle. Project success, for the purposes of this exercise, was set to be the **'successful'** value of the **'state'** variable of the Kickstarter dataset. For prediction purposes, even though the state variable had 6 different options, we selected projects with only 'successful' or 'failed' for our prediction engine.\newline
+\newline
 The accuracy of each algorithm has been provided, and tested against a test set, which was selected to be as 20% of the presented data set (the training set being the other 80%). The **`r top_model$model`** is characterized by the **highest accuracy value (`r top_model$accuracy`)** of all the models I have examined, and is hence the optimal model to use for the present project. 
 
 
@@ -506,11 +512,20 @@ I have also attempted to run the **K Nearest Neighbors** algorithm on this datas
 
 ### Possible Extensions and Improvements
 
-The possible evaluation models we can also attempt to get even better results would include:
+
+#### Random Forest
+
+From my evaluations, the best model so far has be shown to be the **random forest** algorithm. I believe that further improvements on this model can be achieved by extensive parameter tuning.
+
+#### New Models To Try
+
+Other predictive models and optimization options that can be attempted in the future include:
 
 * Xgboost Model
 * GBM Model
 * Regularization
+
+#### Feature Engineering
 
 Another possibility for improvement is to be even more creative with feature engineering. Just as we created 3 variables from the launch dates (Month, Day of the Week, and Year launched), we can create the same variables from the deadline variable. 
 \newline
